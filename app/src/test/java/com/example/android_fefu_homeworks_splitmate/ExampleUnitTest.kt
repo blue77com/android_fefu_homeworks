@@ -1,4 +1,4 @@
-package com.example.android_fefu_homeworks
+package com.example.android_fefu_homeworks_splitmate
 
 import org.junit.Test
 

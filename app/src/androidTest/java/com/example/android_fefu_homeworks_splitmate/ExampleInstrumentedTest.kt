@@ -1,4 +1,4 @@
-package com.example.android_fefu_homeworks
+package com.example.android_fefu_homeworks_splitmate
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
