@@ -162,7 +162,7 @@ class HolidayViewModel @Inject constructor(
         // Это гарантирует, что при переключении фильтра мы работаем с полным списком
         val allHolidays = cachedHolidays
 
-        if (allHolidays.isEmpty()) {
+        if (allHolidays.isEmpty() && uiState.filter != HolidayFilter.FAVOURITES) {
             // Если праздники еще не загружены, не меняем состояние
             // (оно может быть Loading или Error)
             return
