@@ -11,6 +11,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import com.example.android_fefu_homeworks.ui.theme.Typography
+import dagger.hilt.android.AndroidEntryPoint
 
 private val GreenLightColorScheme = lightColorScheme(
     primary = Color(0xFF4CAF50),
@@ -33,6 +34,7 @@ private val GreenLightColorScheme = lightColorScheme(
     onError = Color.White
 )
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

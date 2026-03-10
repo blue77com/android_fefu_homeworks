@@ -5,25 +5,50 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.room.util.query
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.example.android_fefu_homeworks.data.HolidayRepository
+import com.example.android_fefu_homeworks.data.HolidayRepositoryImpl
 import com.example.android_fefu_homeworks.model.Holiday
 import com.example.android_fefu_homeworks.model.HolidayFilter
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
-class HolidayViewModel(
-    private val repository: HolidayRepository = HolidayRepository()
+
+@HiltViewModel
+class HolidayViewModel @Inject constructor(
+    private val repository: HolidayRepositoryImpl
 ) : ViewModel() {
 
     var uiState by mutableStateOf(HolidayUiState())
         private set
 
-    private var cachedHolidays: List<Holiday> = emptyList()
+    private var cachedHolidays by mutableStateOf(emptyList<Holiday>())
     private var searchJob: Job? = null
+
+    private var favouritesitems by mutableStateOf(emptyList<Holiday>())
 
     init {
         loadCountries()
+        loadfavorites()
+    }
+
+    private fun loadfavorites(){
+        viewModelScope.launch {
+            try {
+                val favs = repository.getFavourites()
+                favouritesitems = favs
+                uiState = uiState.copy(favourites = favs.map{it.id}.toSet())
+            }   catch (ex: Exception) {
+                uiState = uiState.copy(
+                    listState = HolidayListState.Error(
+                        ex.message ?: "Не удалось загрузить избранное"
+                    )
+                )
+            }
+        }
     }
 
     fun onQueryChange(query: String) {
@@ -58,15 +83,28 @@ class HolidayViewModel(
     }
 
     fun onToggleFavourite(holidayId: String) {
-        val favourites = uiState.favourites
-        uiState = uiState.copy(
-            favourites = if (holidayId in favourites) {
-                favourites - holidayId
-            } else {
-                favourites + holidayId
+        viewModelScope.launch {
+            val currentItems = favouritesitems
+            val currentIds = uiState.favourites
+
+            if (holidayId in currentIds) {
+                repository.removeFavorite(holidayId)
+                favouritesitems = currentItems.filterNot { it.id ==holidayId }
+                uiState = uiState.copy(favourites = currentIds - holidayId)
             }
-        )
-        filterHolidays()
+            else {
+                val holiday = cachedHolidays.firstOrNull() { it.id == holidayId }
+                if (holiday == null){
+                    uiState = uiState.copy(listState = HolidayListState.Error(
+                         "Не удалось загрузить избранное"
+                    ))
+                    return@launch
+                }
+                repository.addFavorite(holiday)
+                favouritesitems = listOf(holiday) + currentItems
+                uiState = uiState.copy(favourites = currentIds + holidayId)
+            }
+        }
     }
 
     fun retry() {
@@ -131,9 +169,7 @@ class HolidayViewModel(
         }
 
         val filtered = when {
-            uiState.filter == HolidayFilter.FAVOURITES -> {
-                allHolidays.filter { it.id in uiState.favourites }
-            }
+            uiState.filter == HolidayFilter.FAVOURITES -> favouritesitems
             uiState.query.isNotBlank() -> {
                 val queryLower = uiState.query.lowercase()
                 allHolidays.filter {

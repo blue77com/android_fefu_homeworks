@@ -2,6 +2,7 @@ package com.example.android_fefu_homeworks
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -24,7 +25,7 @@ sealed class HolidayRoute(val route: String) {
 @Composable
 fun HolidayApp() {
     val navController = rememberNavController()
-    val viewModel: HolidayViewModel = viewModel()
+    val viewModel: HolidayViewModel = hiltViewModel()
     val uiState = viewModel.uiState
 
     NavHost(
