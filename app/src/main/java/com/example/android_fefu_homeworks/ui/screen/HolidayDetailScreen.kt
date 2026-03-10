@@ -131,10 +131,6 @@ fun HolidayDetailScreen(
                     )
                 }
 
-                if (holiday.launchYear != null) {
-                    DetailItem(label = "Год введения", value = holiday.launchYear.toString())
-                }
-
                 if (holiday.types.isNotEmpty()) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),

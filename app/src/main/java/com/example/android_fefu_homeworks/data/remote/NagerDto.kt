@@ -20,7 +20,6 @@ data class HolidayDto(
     val countryCode: String,
     val global: Boolean,
     val counties: List<String>?,
-    val launchYear: Int?,
     val types: List<String>
 )
 
@@ -31,6 +30,5 @@ fun HolidayDto.toDomain(): Holiday = Holiday(
     countryCode = countryCode,
     global = global,
     counties = counties,
-    launchYear = launchYear,
     types = types
 )

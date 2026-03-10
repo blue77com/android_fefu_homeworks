@@ -7,7 +7,6 @@ data class Holiday(
     val countryCode: String,
     val global: Boolean,
     val counties: List<String>?,
-    val launchYear: Int?,
     val types: List<String>
 ) {
     val id: String

@@ -41,6 +41,7 @@ class HolidayViewModel @Inject constructor(
                 val favs = repository.getFavourites()
                 favouritesitems = favs
                 uiState = uiState.copy(favourites = favs.map{it.id}.toSet())
+                filterHolidays()
             }   catch (ex: Exception) {
                 uiState = uiState.copy(
                     listState = HolidayListState.Error(
@@ -91,6 +92,9 @@ class HolidayViewModel @Inject constructor(
                 repository.removeFavorite(holidayId)
                 favouritesitems = currentItems.filterNot { it.id ==holidayId }
                 uiState = uiState.copy(favourites = currentIds - holidayId)
+                if (uiState.filter == HolidayFilter.FAVOURITES) {
+                    filterHolidays()
+                }
             }
             else {
                 val holiday = cachedHolidays.firstOrNull() { it.id == holidayId }
@@ -131,7 +135,9 @@ class HolidayViewModel @Inject constructor(
                     isLoadingCountries = false
                 )
             } catch (e: Exception) {
-                uiState = uiState.copy(isLoadingCountries = false)
+                uiState = uiState.copy(listState = HolidayListState.Error(
+                     "Ошибка загрузки стран"
+                ))
             }
         }
     }
@@ -150,7 +156,7 @@ class HolidayViewModel @Inject constructor(
             } catch (e: Exception) {
                 uiState = uiState.copy(
                     listState = HolidayListState.Error(
-                        e.message ?: "Ошибка загрузки праздников"
+                         "Ошибка загрузки праздников"
                     )
                 )
             }
@@ -163,28 +169,36 @@ class HolidayViewModel @Inject constructor(
         val allHolidays = cachedHolidays
 
         if (allHolidays.isEmpty() && uiState.filter != HolidayFilter.FAVOURITES) {
+            uiState = uiState.copy(listState = HolidayListState.Empty)
             // Если праздники еще не загружены, не меняем состояние
             // (оно может быть Loading или Error)
             return
         }
 
         val filtered = when {
-            uiState.filter == HolidayFilter.FAVOURITES -> favouritesitems
-            uiState.query.isNotBlank() -> {
-                val queryLower = uiState.query.lowercase()
-                allHolidays.filter {
-                    it.name.lowercase().contains(queryLower) ||
-                    it.localName.lowercase().contains(queryLower)
+            uiState.filter == HolidayFilter.FAVOURITES -> {
+                if (uiState.query.isNotBlank()) {
+                    val queryLower = uiState.query.lowercase()
+                    favouritesitems.filter {
+                        it.name.lowercase().contains(queryLower) ||
+                                it.localName.lowercase().contains(queryLower)
+                    }
+                } else {
+                    favouritesitems
                 }
             }
-            else -> allHolidays
+            uiState.query.isNotBlank() -> {
+                val queryLower = uiState.query.lowercase()
+                cachedHolidays.filter {
+                    it.name.lowercase().contains(queryLower) ||
+                            it.localName.lowercase().contains(queryLower)
+                }
+            }
+            else -> cachedHolidays
         }
 
         when {
             filtered.isEmpty() && (uiState.query.isNotBlank() || uiState.filter == HolidayFilter.FAVOURITES) -> {
-                uiState = uiState.copy(listState = HolidayListState.Empty)
-            }
-            filtered.isEmpty() -> {
                 uiState = uiState.copy(listState = HolidayListState.Empty)
             }
             else -> {

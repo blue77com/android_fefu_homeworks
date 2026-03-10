@@ -15,6 +15,5 @@ data class FavouriteHolidayEntity (
     val name: String,
     val countryCode: String,
     val global: Boolean,
-    val launchYear: Int?,
 )
 

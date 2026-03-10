@@ -43,8 +43,7 @@ class HolidayRepositoryImpl @Inject constructor(
             localName = Holiday.localName , // если localName не задан
             name = Holiday.name,
             countryCode = Holiday.countryCode,
-            global = Holiday.global,
-            launchYear = Holiday.launchYear
+            global = Holiday.global
         )
 
         // 2. Преобразуем списки типов (например, holiday.types — List<String>)

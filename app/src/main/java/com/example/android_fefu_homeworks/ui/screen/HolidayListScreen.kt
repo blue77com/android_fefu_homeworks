@@ -170,7 +170,6 @@ fun HolidayListScreen(
                 modifier = Modifier.fillMaxWidth()
                     .padding(6.dp),
                 label = { Text("Поиск праздников") },
-                enabled = state.selectedCountryCode != null,
                 singleLine = true
             )
 
