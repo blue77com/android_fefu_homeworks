@@ -1,9 +1,7 @@
 package com.example.android_fefu_homeworks
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -44,7 +42,8 @@ fun HolidayApp() {
                     navController.navigate(HolidayRoute.Detail.createRoute(holidayId))
                 },
                 onRetry = viewModel::retry,
-                onRefresh = viewModel::refresh
+                onRefresh = viewModel::refresh,
+                onDismissFavouriteActionError = viewModel::dismissFavouriteActionError,
             )
         }
 
@@ -64,7 +63,9 @@ fun HolidayApp() {
                 holiday = holiday,
                 isFavourite = isFavourite,
                 onToggleFavourite = { viewModel.onToggleFavourite(holidayId) },
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                favouriteActionError = uiState.favouriteActionError,
+                onDismissFavouriteActionError = viewModel::dismissFavouriteActionError,
             )
         }
     }

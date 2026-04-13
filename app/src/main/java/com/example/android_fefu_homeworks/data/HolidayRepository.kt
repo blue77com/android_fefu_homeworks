@@ -38,31 +38,28 @@ class HolidayRepositoryImpl @Inject constructor(
     override suspend fun addFavorite(Holiday: Holiday) = withContext(Dispatchers.IO)
     {
         val holidayEntity = FavouriteHolidayEntity(
-            id =  Holiday.id,                 // убедитесь, что id — это String
+            id =  Holiday.id,
             date = Holiday.date,
-            localName = Holiday.localName , // если localName не задан
+            localName = Holiday.localName ,
             name = Holiday.name,
             countryCode = Holiday.countryCode,
             global = Holiday.global
         )
 
-        // 2. Преобразуем списки типов (например, holiday.types — List<String>)
         val typeEntities = Holiday.types?.map { typeName ->
             FavouritesTypesEntity(
-                holidayId = Holiday.id,       // тот же id
-                name = typeName                // предположим, поле называется type
+                holidayId = Holiday.id,
+                name = typeName
             )
         } ?: emptyList()
 
-        // 3. Преобразуем списки округов (holiday.counties — List<String>)
         val countyEntities = Holiday.counties?.map { countyCode ->
             FavouritesCountiesEntity(
                 holidayId = Holiday.id,
-                name = countyCode         // предположим, поле countyCode
+                name = countyCode
             )
         } ?: emptyList()
 
-        // 4. Вызываем транзакционную вставку
         favoriteHolidayDao.insert(holidayEntity, typeEntities, countyEntities)
     }
 

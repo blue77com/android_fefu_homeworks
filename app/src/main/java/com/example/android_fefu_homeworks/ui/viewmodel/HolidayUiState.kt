@@ -17,5 +17,8 @@ data class HolidayUiState(
     val favourites: Set<String> = emptySet(),
     val countries: List<com.example.android_fefu_homeworks.model.Country> = emptyList(),
     val listState: HolidayListState = HolidayListState.Empty,
-    val isLoadingCountries: Boolean = false
+    val isLoadingCountries: Boolean = false,
+    val countriesError: String? = null,
+    val favouritesError: String? = null,
+    val favouriteActionError: String? = null,
 )

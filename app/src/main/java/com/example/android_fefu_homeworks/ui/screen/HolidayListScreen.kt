@@ -63,7 +63,8 @@ fun HolidayListScreen(
     onToggleFavourite: (String) -> Unit,
     onHolidayClick: (String) -> Unit,
     onRetry: () -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    onDismissFavouriteActionError: () -> Unit,
 ) {
     var yearInput by remember { mutableStateOf(state.selectedYear.toString()) }
     
@@ -114,6 +115,22 @@ fun HolidayListScreen(
                 onCountrySelected = onCountryChange,
                 isLoading = state.isLoadingCountries
             )
+
+            state.countriesError?.let { message ->
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Страны: $message",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    OutlinedButton(onClick = onRetry, modifier = Modifier.fillMaxWidth()) {
+                        Text("Повторить загрузку стран")
+                    }
+                }
+            }
 
             // Year selector
             Row(
@@ -172,6 +189,40 @@ fun HolidayListScreen(
                 label = { Text("Поиск праздников") },
                 singleLine = true
             )
+
+            state.favouritesError?.let { message ->
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Избранное: $message",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    OutlinedButton(onClick = onRetry, modifier = Modifier.fillMaxWidth()) {
+                        Text("Повторить загрузку избранного")
+                    }
+                }
+            }
+
+            state.favouriteActionError?.let { message ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = message,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = onDismissFavouriteActionError) {
+                        Text("OK")
+                    }
+                }
+            }
 
             // Filter buttons
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
