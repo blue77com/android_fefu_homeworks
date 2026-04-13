@@ -70,8 +70,19 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     testImplementation(libs.junit)
+    testImplementation("io.mockk:mockk:1.13.17") {
+        exclude(group = "org.junit.jupiter")
+        exclude(group = "org.junit.platform")
+    }
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation("androidx.room:room-testing:$room_version")
+    androidTestImplementation("io.mockk:mockk-android:1.13.17") {
+        exclude(group = "org.junit.jupiter")
+        exclude(group = "org.junit.platform")
+    }
+    androidTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)

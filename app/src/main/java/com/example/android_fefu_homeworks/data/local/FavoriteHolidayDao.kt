@@ -1,11 +1,9 @@
 package com.example.android_fefu_homeworks.data.local
 
 import androidx.room.Dao
-import androidx.room.Embedded
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.Relation
 import androidx.room.Transaction
 
 
@@ -34,9 +32,6 @@ interface FavoriteHolidayDao {
 
     @Query(value = "DELETE FROM favourite_holiday WHERE id = :id")
     suspend fun deleteById(id: String)
-
-    /*@Query(value = "SELECT * FROM favorite_holiday ORDER BY launchYear DESC")
-    suspend fun getAll():List<FavouriteHolidayEntity>*/
 
     @Transaction
     @Query("SELECT * FROM favourite_holiday")
