@@ -1,11 +1,15 @@
 package com.example.android_fefu_homeworks.ui.widget
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -30,9 +34,7 @@ fun HolidayCard(
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
+        modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Row(
@@ -42,7 +44,11 @@ fun HolidayCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(onClick = onClick),
+            ) {
                 Text(
                     text = holiday.name,
                     style = MaterialTheme.typography.titleMedium,
@@ -66,14 +72,29 @@ fun HolidayCard(
                     )
                 }
             }
-            Icon(
-                imageVector = if (isFavourite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                contentDescription = if (isFavourite) "Remove from favourites" else "Add to favourites",
-                tint = if (isFavourite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            Box(
                 modifier = Modifier
-                    .clickable(onClick = onToggleFavourite)
-                    .padding(8.dp)
-            )
+                    .size(48.dp)
+                    .clickable(onClick = onToggleFavourite),
+                contentAlignment = Alignment.Center,
+            ) {
+                Crossfade(
+                    targetState = isFavourite,
+                    animationSpec = tween(durationMillis = 200),
+                    label = "favouriteIcon",
+                ) { favourite ->
+                    Icon(
+                        imageVector = if (favourite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription =
+                            if (favourite) "Remove from favourites" else "Add to favourites",
+                        tint = if (favourite) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                }
+            }
         }
     }
 }

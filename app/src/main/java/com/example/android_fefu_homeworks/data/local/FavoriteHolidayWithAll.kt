@@ -20,6 +20,6 @@ fun FavoriteHolidayWithAll.toDomain(): Holiday {
         countryCode = holiday.countryCode,
         global = holiday.global,
         types = types.map { it.name },
-        counties = counties.map { it.name }
+        counties = counties.map { it.name },
     )
 }

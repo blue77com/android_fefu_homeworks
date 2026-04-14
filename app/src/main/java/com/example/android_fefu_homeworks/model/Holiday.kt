@@ -7,12 +7,18 @@ data class Holiday(
     val countryCode: String,
     val global: Boolean,
     val counties: List<String>?,
-    val types: List<String>
+    val types: List<String>,
 ) {
     val id: String
-        get() {
-            val countiesStr = counties?.joinToString(",") ?: "global"
-            return "${countryCode}_${date}_${name}_${localName}_${countiesStr}"
+        get() = run {
+            val normalizedCounties = counties
+                ?.filter { it.isNotBlank() }
+                ?.sorted()
+            val countiesStr = normalizedCounties
+                ?.takeIf { it.isNotEmpty() }
+                ?.joinToString(",")
+                ?: "global"
+            "${countryCode}_${date}_${name}_${localName}_${countiesStr}"
         }
     
     val translatedTypes: List<String>

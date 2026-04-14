@@ -1,254 +1,279 @@
 package com.example.android_fefu_homeworks.ui.viewmodel
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.launch
 import com.example.android_fefu_homeworks.data.HolidayRepository
 import com.example.android_fefu_homeworks.model.Holiday
 import com.example.android_fefu_homeworks.model.HolidayFilter
+import com.example.android_fefu_homeworks.model.Country
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import java.util.Calendar
 import javax.inject.Inject
-
 
 @HiltViewModel
 class HolidayViewModel @Inject constructor(
-    private val repository: HolidayRepository
+    private val repository: HolidayRepository,
 ) : ViewModel() {
+    private val detailHolidayCache = mutableMapOf<String, Holiday>()
 
-    var uiState by mutableStateOf(HolidayUiState())
-        private set
+    private val _query = MutableStateFlow("")
+    private val _filter = MutableStateFlow(HolidayFilter.ALL)
+    private val _country = MutableStateFlow<String?>(null)
+    private val _year = MutableStateFlow(Calendar.getInstance().get(Calendar.YEAR))
+    private val _countriesState = MutableStateFlow(CountriesUi())
+    private val _favouriteActionError = MutableStateFlow<String?>(null)
+    private val _favouritesReload = MutableStateFlow(0)
 
-    private var cachedHolidays by mutableStateOf(emptyList<Holiday>())
-    private var searchJob: Job? = null
-    private var holidaysLoadJob: Job? = null
-
-    private var favouritesitems by mutableStateOf(emptyList<Holiday>())
+    private val _refreshRequests = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 64,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
 
     init {
         loadCountries()
-        loadfavorites()
-    }
-
-    private fun loadfavorites() {
-        viewModelScope.launch {
-            try {
-                val favs = repository.getFavourites()
-                favouritesitems = favs
-                uiState = uiState.copy(
-                    favourites = favs.map { it.id }.toSet(),
-                    favouritesError = null,
-                )
-                filterHolidays()
-            } catch (ex: Exception) {
-                uiState = uiState.copy(
-                    favouritesError = ex.message ?: "Не удалось загрузить избранное",
-                )
-            }
-        }
     }
 
     fun onQueryChange(query: String) {
-        uiState = uiState.copy(query = query)
-        searchJob?.cancel()
-        if (query.isNotBlank()) {
-            searchJob = viewModelScope.launch {
-                delay(400)
-                filterHolidays()
-            }
-        } else {
-            filterHolidays()
-        }
+        _query.value = query
     }
 
     fun onCountryChange(countryCode: String) {
-        uiState = uiState.copy(selectedCountryCode = countryCode, query = "")
-        loadHolidays()
+        _country.value = countryCode
+        _query.value = ""
     }
 
     fun onYearChange(year: Int) {
-        uiState = uiState.copy(selectedYear = year)
-        if (uiState.selectedCountryCode != null) {
-            loadHolidays()
-        }
+        _year.value = year
     }
 
     fun onFilterChange(filter: HolidayFilter) {
-        uiState = uiState.copy(filter = filter)
-        filterHolidays()
+        _filter.value = filter
     }
 
     fun dismissFavouriteActionError() {
-        uiState = uiState.copy(favouriteActionError = null)
+        _favouriteActionError.value = null
     }
+
+    private val debouncedQuery = _query
+        .debounce { q -> if (q.isBlank()) 0L else 400L }
+        .distinctUntilChanged()
+
+    private val favouritesOutcome: StateFlow<Result<List<Holiday>>> = _favouritesReload
+        .flatMapLatest {
+            repository.observeFavourites()
+                .map { Result.success(it) }
+                .catch { emit(Result.failure(it)) }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = Result.success(emptyList()),
+        )
+
+    private val reloadKeys: Flow<Pair<String?, Int>> = merge(
+        combine(_country, _year) { c, y -> Pair(c, y) }.distinctUntilChanged(),
+        _refreshRequests.map { Pair(_country.value, _year.value) },
+    )
+
+    private val holidaysApiState: StateFlow<ApiHolidaysState> = reloadKeys
+        .flatMapLatest { (countryCode, year) ->
+            if (countryCode == null) {
+                flow { emit(ApiHolidaysState.IdleNoCountry) }
+            } else {
+                flow {
+                    emit(ApiHolidaysState.Loading)
+                    try {
+                        val holidays = repository.getPublicHolidays(year, countryCode)
+                        emit(ApiHolidaysState.Success(holidays))
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        emit(ApiHolidaysState.Error("Ошибка загрузки праздников"))
+                    }
+                }
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = ApiHolidaysState.IdleNoCountry,
+        )
+
+    private val listPresentation: StateFlow<HolidayListState> = combine(
+        debouncedQuery,
+        _filter,
+        favouritesOutcome,
+        holidaysApiState,
+    ) { debounced, filter, favResult, api ->
+        HolidayListPresentationBuilder.build(debounced, filter, favResult, api)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = HolidayListState.Empty,
+    )
+
+    private data class CoreUi(
+        val query: String,
+        val listState: HolidayListState,
+        val favResult: Result<List<Holiday>>,
+        val filter: HolidayFilter,
+    )
+
+    private val coreUi: StateFlow<CoreUi> = combine(
+        _query,
+        listPresentation,
+        favouritesOutcome,
+        _filter,
+    ) { query, listState, favResult, filter ->
+        CoreUi(query, listState, favResult, filter)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = CoreUi("", HolidayListState.Empty, Result.success(emptyList()), HolidayFilter.ALL),
+    )
+
+    val uiState: StateFlow<HolidayUiState> = combine(
+        coreUi,
+        _countriesState,
+        _country,
+        _year,
+        _favouriteActionError,
+    ) { core, countriesSt, country, year, favActionErr ->
+        HolidayUiState(
+            query = core.query,
+            selectedCountryCode = country,
+            selectedYear = year,
+            filter = core.filter,
+            favourites = core.favResult.getOrElse { emptyList() }.map { it.id }.toSet(),
+            countries = countriesSt.countries,
+            listState = core.listState,
+            isLoadingCountries = countriesSt.loading,
+            countriesError = countriesSt.error,
+            favouritesError = core.favResult.exceptionOrNull()?.let { e ->
+                e.message ?: "Не удалось загрузить избранное"
+            },
+            favouriteActionError = favActionErr,
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = HolidayUiState(),
+    )
 
     fun onToggleFavourite(holidayId: String) {
         viewModelScope.launch {
-            uiState = uiState.copy(favouriteActionError = null)
-            val currentItems = favouritesitems
-            val currentIds = uiState.favourites
+            _favouriteActionError.value = null
+            val currentIds =
+                favouritesOutcome.value.getOrElse { emptyList() }.map { it.id }.toSet()
 
             if (holidayId in currentIds) {
                 try {
                     repository.removeFavorite(holidayId)
-                    favouritesitems = currentItems.filterNot { it.id == holidayId }
-                    uiState = uiState.copy(favourites = currentIds - holidayId)
-                    if (uiState.filter == HolidayFilter.FAVOURITES) {
-                        filterHolidays()
-                    }
                 } catch (e: Exception) {
                     if (e is CancellationException) throw e
-                    uiState = uiState.copy(
-                        favouriteActionError = e.message ?: "Не удалось удалить из избранного",
-                    )
+                    _favouriteActionError.value =
+                        e.message ?: "Не удалось удалить из избранного"
                 }
             } else {
-                val holiday = findHolidayInMemory(holidayId)
+                val holiday = findHolidayInMemory(holidayId) ?: detailHolidayCache[holidayId]
                 if (holiday == null) {
-                    uiState = uiState.copy(
-                        favouriteActionError =
-                            "Праздник не найден в загруженном списке. Обновите список или выберите страну.",
-                    )
+                    _favouriteActionError.value =
+                        "Праздник не найден в загруженном списке. Обновите список или выберите страну."
                     return@launch
                 }
                 try {
                     repository.addFavorite(holiday)
-                    favouritesitems = listOf(holiday) + currentItems
-                    uiState = uiState.copy(favourites = currentIds + holidayId)
-                    if (uiState.filter == HolidayFilter.FAVOURITES) {
-                        filterHolidays()
-                    }
                 } catch (e: Exception) {
                     if (e is CancellationException) throw e
-                    uiState = uiState.copy(
-                        favouriteActionError = e.message ?: "Не удалось добавить в избранное",
-                    )
+                    _favouriteActionError.value =
+                        e.message ?: "Не удалось добавить в избранное"
                 }
             }
         }
     }
 
     fun retry() {
-        if (uiState.favouritesError != null) {
-            loadfavorites()
+        if (uiState.value.favouritesError != null) {
+            _favouritesReload.value += 1
         }
-        if (uiState.countriesError != null) {
+        if (uiState.value.countriesError != null) {
             loadCountries()
         }
-        if (uiState.listState is HolidayListState.Error && uiState.selectedCountryCode != null) {
-            loadHolidays()
+        if (uiState.value.listState is HolidayListState.Error && uiState.value.selectedCountryCode != null) {
+            viewModelScope.launch { _refreshRequests.emit(Unit) }
         }
     }
 
     fun refresh() {
-        if (uiState.selectedCountryCode != null) {
-            loadHolidays()
+        if (_country.value != null) {
+            viewModelScope.launch { _refreshRequests.emit(Unit) }
         }
     }
+
+    private data class CountriesUi(
+        val countries: List<Country> = emptyList(),
+        val loading: Boolean = false,
+        val error: String? = null,
+    )
 
     private fun loadCountries() {
         viewModelScope.launch {
-            uiState = uiState.copy(
-                isLoadingCountries = true,
-                countriesError = null,
+            _countriesState.value = _countriesState.value.copy(
+                loading = true,
+                error = null,
             )
             try {
                 val countries = repository.getAvailableCountries()
-                uiState = uiState.copy(
+                _countriesState.value = CountriesUi(
                     countries = countries,
-                    isLoadingCountries = false,
-                    countriesError = null,
+                    loading = false,
+                    error = null,
                 )
             } catch (e: Exception) {
-                uiState = uiState.copy(
-                    isLoadingCountries = false,
-                    countriesError = e.message ?: "Ошибка загрузки стран",
+                _countriesState.value = CountriesUi(
+                    countries = emptyList(),
+                    loading = false,
+                    error = e.message ?: "Ошибка загрузки стран",
                 )
             }
         }
     }
 
-    private fun loadHolidays() {
-        val countryCode = uiState.selectedCountryCode ?: return
-        val year = uiState.selectedYear
-
-        holidaysLoadJob?.cancel()
-        holidaysLoadJob = viewModelScope.launch {
-            uiState = uiState.copy(listState = HolidayListState.Loading)
-            try {
-                val holidays = repository.getPublicHolidays(year, countryCode)
-                ensureActive()
-                cachedHolidays = holidays
-                uiState = uiState.copy(listState = HolidayListState.Success(holidays))
-                filterHolidays()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                uiState = uiState.copy(
-                    listState = HolidayListState.Error(
-                        "Ошибка загрузки праздников",
-                    ),
-                )
-            }
+    fun getHolidayById(holidayId: String): Holiday? {
+        val holiday = findHolidayInMemory(holidayId)
+        if (holiday != null) {
+            detailHolidayCache[holidayId] = holiday
+            return holiday
         }
+        return detailHolidayCache[holidayId]
     }
 
-    private fun filterHolidays() {
-        if (uiState.listState is HolidayListState.Error) {
-            return
-        }
-
-        val allHolidays = cachedHolidays
-
-        if (allHolidays.isEmpty() && uiState.filter != HolidayFilter.FAVOURITES) {
-            uiState = uiState.copy(listState = HolidayListState.Empty)
-            return
-        }
-
-        val filtered = when {
-            uiState.filter == HolidayFilter.FAVOURITES -> {
-                if (uiState.query.isNotBlank()) {
-                    val queryLower = uiState.query.lowercase()
-                    favouritesitems.filter {
-                        it.name.lowercase().contains(queryLower) ||
-                                it.localName.lowercase().contains(queryLower)
-                    }
-                } else {
-                    favouritesitems
-                }
-            }
-            uiState.query.isNotBlank() -> {
-                val queryLower = uiState.query.lowercase()
-                cachedHolidays.filter {
-                    it.name.lowercase().contains(queryLower) ||
-                            it.localName.lowercase().contains(queryLower)
-                }
-            }
-            else -> cachedHolidays
-        }
-
-        when {
-            filtered.isEmpty() && (uiState.query.isNotBlank() || uiState.filter == HolidayFilter.FAVOURITES) -> {
-                uiState = uiState.copy(listState = HolidayListState.Empty)
-            }
-            else -> {
-                uiState = uiState.copy(listState = HolidayListState.Success(filtered))
-            }
-        }
+    private fun findHolidayInMemory(holidayId: String): Holiday? {
+        val api = holidaysApiState.value
+        val favs = favouritesOutcome.value.getOrElse { emptyList() }
+        val fromApi = (api as? ApiHolidaysState.Success)?.holidays
+        fromApi?.firstOrNull { it.id == holidayId }?.let { return it }
+        favs.firstOrNull { it.id == holidayId }?.let { return it }
+        val listState = listPresentation.value
+        return (listState as? HolidayListState.Success)
+            ?.holidays
+            ?.firstOrNull { it.id == holidayId }
     }
-
-    private fun findHolidayInMemory(holidayId: String): Holiday? =
-        cachedHolidays.firstOrNull { it.id == holidayId }
-            ?: favouritesitems.firstOrNull { it.id == holidayId }
-            ?: (uiState.listState as? HolidayListState.Success)
-                ?.holidays
-                ?.firstOrNull { it.id == holidayId }
-
-    fun getHolidayById(holidayId: String): Holiday? = findHolidayInMemory(holidayId)
 }

@@ -4,6 +4,8 @@ import com.example.android_fefu_homeworks.data.HolidayRepository
 import com.example.android_fefu_homeworks.model.Country
 import com.example.android_fefu_homeworks.model.Holiday
 import java.io.IOException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 
 class FakeHolidayRepository(
     private val favourites: List<Holiday> = emptyList(),
@@ -16,6 +18,8 @@ class FakeHolidayRepository(
     var removeFavoriteCalls: Int = 0
         private set
     var getFavouritesCalls: Int = 0
+        private set
+    var observeFavouritesCalls: Int = 0
         private set
     var getAvailableCountriesCalls: Int = 0
         private set
@@ -40,6 +44,14 @@ class FakeHolidayRepository(
             throw IOException("favourites failed")
         }
         return favourites
+    }
+
+    override fun observeFavourites(): Flow<List<Holiday>> = flow {
+        observeFavouritesCalls++
+        if (failFavourites) {
+            throw IOException("favourites failed")
+        }
+        emit(favourites)
     }
 
     override suspend fun getAvailableCountries(): List<Country> {

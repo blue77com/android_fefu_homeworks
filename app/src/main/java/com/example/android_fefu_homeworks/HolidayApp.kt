@@ -1,13 +1,15 @@
 package com.example.android_fefu_homeworks
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.android_fefu_homeworks.model.HolidayFilter
 import com.example.android_fefu_homeworks.ui.screen.HolidayDetailScreen
 import com.example.android_fefu_homeworks.ui.screen.HolidayListScreen
 import com.example.android_fefu_homeworks.ui.viewmodel.HolidayViewModel
@@ -16,7 +18,7 @@ sealed class HolidayRoute(val route: String) {
     data object List : HolidayRoute("list")
     data object Detail : HolidayRoute("detail/{holidayId}") {
         const val ARG_HOLIDAY_ID = "holidayId"
-        fun createRoute(holidayId: String): String = "detail/$holidayId"
+        fun createRoute(holidayId: String): String = "detail/${Uri.encode(holidayId)}"
     }
 }
 
@@ -24,7 +26,7 @@ sealed class HolidayRoute(val route: String) {
 fun HolidayApp() {
     val navController = rememberNavController()
     val viewModel: HolidayViewModel = hiltViewModel()
-    val uiState = viewModel.uiState
+    val uiState by viewModel.uiState.collectAsState()
 
     NavHost(
         navController = navController,
@@ -55,7 +57,9 @@ fun HolidayApp() {
                 }
             )
         ) { backStackEntry ->
-            val holidayId = backStackEntry.arguments?.getString(HolidayRoute.Detail.ARG_HOLIDAY_ID) ?: ""
+            val holidayId = Uri.decode(
+                backStackEntry.arguments?.getString(HolidayRoute.Detail.ARG_HOLIDAY_ID) ?: ""
+            )
             val holiday = viewModel.getHolidayById(holidayId)
             val isFavourite = holidayId in uiState.favourites
 

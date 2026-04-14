@@ -1,19 +1,19 @@
 package com.example.android_fefu_homeworks.data
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import com.example.android_fefu_homeworks.NetworkModule
 import com.example.android_fefu_homeworks.data.local.FavoriteHolidayDao
 import com.example.android_fefu_homeworks.data.local.FavouriteHolidayEntity
 import com.example.android_fefu_homeworks.data.local.FavouritesCountiesEntity
 import com.example.android_fefu_homeworks.data.local.FavouritesTypesEntity
 import com.example.android_fefu_homeworks.data.local.toDomain
-import com.example.android_fefu_homeworks.data.remote.CountryDto
 import com.example.android_fefu_homeworks.data.remote.NagerApi
 import com.example.android_fefu_homeworks.data.remote.toDomain
 import com.example.android_fefu_homeworks.model.Country
 import com.example.android_fefu_homeworks.model.Holiday
-import retrofit2.http.Path
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -23,7 +23,7 @@ interface HolidayRepository {
 
     suspend fun removeFavorite(id: String)
 
-    suspend fun getFavourites(): List<Holiday>
+    fun observeFavourites(): Flow<List<Holiday>>
 
     suspend fun getAvailableCountries(): List<Country>
     suspend fun getPublicHolidays(year: Int, countryCode: String) : List<Holiday>
@@ -63,9 +63,10 @@ class HolidayRepositoryImpl @Inject constructor(
         favoriteHolidayDao.insert(holidayEntity, typeEntities, countyEntities)
     }
 
-    override suspend fun getFavourites(): List<Holiday> = withContext(Dispatchers.IO){
-        favoriteHolidayDao.getAll().map{ it.toDomain() }
-    }
+    override fun observeFavourites(): Flow<List<Holiday>> =
+        favoriteHolidayDao.observeAll()
+            .map { rows -> rows.map { it.toDomain() } }
+            .flowOn(Dispatchers.IO)
 
     override suspend fun removeFavorite(id: String) = withContext(Dispatchers.IO){
         favoriteHolidayDao.deleteById(id)

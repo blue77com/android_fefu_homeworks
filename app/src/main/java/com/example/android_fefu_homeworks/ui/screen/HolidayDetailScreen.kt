@@ -18,6 +18,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -64,12 +66,23 @@ fun HolidayDetailScreen(
                         textAlign = TextAlign.Center
                     )
                     IconButton(onClick = onToggleFavourite) {
-                        Icon(
-                            imageVector = if (isFavourite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = if (isFavourite) "Удалить из избранного" else "Добавить в избранное",
-                            tint = if (isFavourite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(24.dp)
-                        )
+                        Crossfade(
+                            targetState = isFavourite,
+                            animationSpec = tween(durationMillis = 200),
+                            label = "detailFavouriteIcon",
+                        ) { favourite ->
+                            Icon(
+                                imageVector = if (favourite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription =
+                                    if (favourite) "Удалить из избранного" else "Добавить в избранное",
+                                tint = if (favourite) {
+                                    MaterialTheme.colorScheme.error
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                modifier = Modifier.size(24.dp),
+                            )
+                        }
                     }
                 }
             }

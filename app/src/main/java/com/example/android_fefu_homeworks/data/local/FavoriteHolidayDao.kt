@@ -5,12 +5,11 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import kotlinx.coroutines.flow.Flow
 
 
 @Dao
 interface FavoriteHolidayDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert (entity: FavouriteHolidayEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertHoliday(entity: FavouriteHolidayEntity)
@@ -30,12 +29,11 @@ interface FavoriteHolidayDao {
         counties.forEach { insertCounty(it) }
     }
 
-    @Query(value = "DELETE FROM favourite_holiday WHERE id = :id")
+    @Query("DELETE FROM favourite_holiday WHERE Id = :id")
     suspend fun deleteById(id: String)
 
     @Transaction
     @Query("SELECT * FROM favourite_holiday")
-    suspend fun getAll(): List<FavoriteHolidayWithAll>
-
+    fun observeAll(): Flow<List<FavoriteHolidayWithAll>>
 
 }

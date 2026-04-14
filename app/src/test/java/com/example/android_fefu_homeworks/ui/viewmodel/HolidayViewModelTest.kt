@@ -28,7 +28,7 @@ class HolidayViewModelTest {
         vm.onToggleFavourite("missing-id")
         advanceUntilIdle()
 
-        assertNotNull(vm.uiState.favouriteActionError)
+        assertNotNull(vm.uiState.value.favouriteActionError)
         assertEquals(0, repo.addFavoriteCalls)
         assertEquals(0, repo.removeFavoriteCalls)
     }
@@ -57,12 +57,12 @@ class HolidayViewModelTest {
         vm.onQueryChange("new ye")
 
         runCurrent()
-        assertTrue(vm.uiState.query.isNotBlank())
+        assertTrue(vm.uiState.value.query.isNotBlank())
 
         advanceTimeBy(401)
         advanceUntilIdle()
 
-        val state = vm.uiState.listState as HolidayListState.Success
+        val state = vm.uiState.value.listState as HolidayListState.Success
         assertEquals(1, state.holidays.size)
         assertEquals("New Year", state.holidays.first().name)
     }
@@ -83,8 +83,8 @@ class HolidayViewModelTest {
         vm.onCountryChange("RU")
         advanceUntilIdle()
 
-        assertNotNull(vm.uiState.countriesError)
-        assertTrue(vm.uiState.listState is HolidayListState.Error)
+        assertNotNull(vm.uiState.value.countriesError)
+        assertTrue(vm.uiState.value.listState is HolidayListState.Error)
 
         repo.failFavourites = false
         repo.failCountries = false
@@ -93,11 +93,11 @@ class HolidayViewModelTest {
         vm.retry()
         advanceUntilIdle()
 
-        assertTrue(repo.getFavouritesCalls >= 2)
+        assertTrue(repo.observeFavouritesCalls >= 2)
         assertTrue(repo.getAvailableCountriesCalls >= 2)
         assertTrue(repo.getPublicHolidaysCalls >= 2)
-        assertNull(vm.uiState.countriesError)
-        assertNull(vm.uiState.favouritesError)
+        assertNull(vm.uiState.value.countriesError)
+        assertNull(vm.uiState.value.favouritesError)
     }
 
     private fun holiday(
