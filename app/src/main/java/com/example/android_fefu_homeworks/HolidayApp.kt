@@ -48,7 +48,7 @@ fun HolidayApp() {
                 onMonthChange = viewModel::onMonthChange,
                 onDateSelected = viewModel::onDateSelected,
                 onGoToToday = viewModel::goToToday,
-                onToggleFavourite = viewModel::onToggleFavourite,
+                onToggleShowOnlyNotes = viewModel::onToggleShowOnlyNotes,
                 onHolidayClick = { holidayId ->
                     navController.navigate(HolidayRoute.Detail.createRoute(holidayId))
                 },
@@ -65,7 +65,6 @@ fun HolidayApp() {
                 onDeleteNote = viewModel::deleteNote,
                 onRetry = viewModel::retry,
                 onRefresh = viewModel::refresh,
-                onDismissFavouriteActionError = viewModel::dismissFavouriteActionError,
             )
         }
 
@@ -81,15 +80,10 @@ fun HolidayApp() {
                 backStackEntry.arguments?.getString(HolidayRoute.Detail.ARG_HOLIDAY_ID) ?: ""
             )
             val holiday = viewModel.getHolidayById(holidayId)
-            val isFavourite = holidayId in uiState.favourites
 
             HolidayDetailScreen(
                 holiday = holiday,
-                isFavourite = isFavourite,
-                onToggleFavourite = { viewModel.onToggleFavourite(holidayId) },
                 onBackClick = { navController.popBackStack() },
-                favouriteActionError = uiState.favouriteActionError,
-                onDismissFavouriteActionError = viewModel::dismissFavouriteActionError,
             )
         }
 

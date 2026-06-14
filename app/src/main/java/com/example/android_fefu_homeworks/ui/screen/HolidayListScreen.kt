@@ -32,7 +32,7 @@ fun HolidayListScreen(
     onMonthChange: (Int) -> Unit,
     onDateSelected: (LocalDate) -> Unit,
     onGoToToday: () -> Unit,
-    onToggleFavourite: (String) -> Unit,
+    onToggleShowOnlyNotes: (Boolean) -> Unit,
     onHolidayClick: (String) -> Unit,
     onAddNoteClick: (LocalDate) -> Unit,
     onNoteClick: (String) -> Unit,
@@ -40,13 +40,23 @@ fun HolidayListScreen(
     onDeleteNote: (String) -> Unit,
     onRetry: () -> Unit,
     onRefresh: () -> Unit,
-    onDismissFavouriteActionError: () -> Unit,
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Мой Календарь") },
                 actions = {
+                    // Кнопка-переключатель режима "Только заметки"
+                    IconToggleButton(
+                        checked = state.showOnlyNotes,
+                        onCheckedChange = onToggleShowOnlyNotes
+                    ) {
+                        Icon(
+                            imageVector = if (state.showOnlyNotes) Icons.Default.Favorite else Icons.Outlined.FavoriteBorder,
+                            contentDescription = if (state.showOnlyNotes) "Показать все события" else "Только избранные заметки",
+                            tint = if (state.showOnlyNotes) MaterialTheme.colorScheme.error else LocalContentColor.current
+                        )
+                    }
                     IconButton(onClick = onGoToToday) {
                         Icon(Icons.Default.DateRange, contentDescription = "Сегодня")
                     }
@@ -81,7 +91,6 @@ fun HolidayListScreen(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Выбор месяца с перелистыванием (без всплывающего списка)
                 val monthName = remember(state.selectedMonth) {
                     java.time.Month.of(state.selectedMonth + 1)
                         .getDisplayName(TextStyle.FULL, Locale("ru"))
@@ -107,7 +116,6 @@ fun HolidayListScreen(
                     }
                 }
 
-                // Выбор года с перелистыванием
                 Row(
                     modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically
@@ -144,8 +152,20 @@ fun HolidayListScreen(
             
             // Список событий на выбранный день
             val dateStr = state.selectedDate.toString()
-            val dayHolidays = holidays.filter { it.date == dateStr }
-            val dayNotes = state.notes[dateStr] ?: emptyList()
+            
+            // Фильтрация событий для отображения в списке
+            val dayHolidays = if (state.showOnlyNotes) {
+                emptyList() // В режиме заметок праздники не показываем
+            } else {
+                holidays.filter { it.date == dateStr }
+            }
+
+            val dayNotes = if (state.showOnlyNotes) {
+                // Показываем все избранные заметки
+                state.notes.values.flatten().filter { it.isFavourite }
+            } else {
+                state.notes[dateStr] ?: emptyList()
+            }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -153,12 +173,12 @@ fun HolidayListScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "${state.selectedDate.dayOfMonth} ${state.selectedDate.month.getDisplayName(TextStyle.FULL, Locale("ru"))}",
+                    text = if (state.showOnlyNotes) "Избранные заметки" else "${state.selectedDate.dayOfMonth} ${state.selectedDate.month.getDisplayName(TextStyle.FULL, Locale("ru"))}",
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.ExtraBold
                 )
-                if (state.selectedDate == LocalDate.now()) {
+                if (!state.showOnlyNotes && state.selectedDate == LocalDate.now()) {
                     Surface(
                         color = MaterialTheme.colorScheme.primaryContainer,
                         shape = RoundedCornerShape(16.dp)
@@ -181,7 +201,7 @@ fun HolidayListScreen(
                 if (dayHolidays.isEmpty() && dayNotes.isEmpty()) {
                     item {
                         Text(
-                            "Событий не запланировано",
+                            if (state.showOnlyNotes) "У вас пока нет избранных заметок" else "Событий не запланировано",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.outline,
                             modifier = Modifier.padding(vertical = 12.dp)
@@ -203,16 +223,6 @@ fun HolidayListScreen(
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.secondary
                                 )
-                            },
-                            trailingContent = {
-                                val isFav = holiday.id in state.favourites
-                                IconButton(onClick = { onToggleFavourite(holiday.id) }) {
-                                    Icon(
-                                        if (isFav) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                        contentDescription = null,
-                                        tint = if (isFav) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline
-                                    )
-                                }
                             }
                         )
                     }
@@ -225,9 +235,20 @@ fun HolidayListScreen(
                     ) {
                         ListItem(
                             headlineContent = { Text(note.text) },
-                            supportingContent = if (note.description.isNotBlank()) {
-                                { Text(note.description, maxLines = 1) }
-                            } else null,
+                            supportingContent = {
+                                Column {
+                                    if (note.description.isNotBlank()) {
+                                        Text(note.description, maxLines = 1)
+                                    }
+                                    if (state.showOnlyNotes) {
+                                        Text(
+                                            text = note.date,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.secondary
+                                        )
+                                    }
+                                }
+                            },
                             trailingContent = {
                                 Row {
                                     IconButton(onClick = { onToggleNoteFavourite(note.id) }) {
@@ -253,15 +274,17 @@ fun HolidayListScreen(
                     }
                 }
 
-                item {
-                    Button(
-                        onClick = { onAddNoteClick(state.selectedDate) },
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Добавить событие или заметку")
+                if (!state.showOnlyNotes) {
+                    item {
+                        Button(
+                            onClick = { onAddNoteClick(state.selectedDate) },
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Добавить событие или заметку")
+                        }
                     }
                 }
             }

@@ -28,23 +28,19 @@ class HolidayViewModel @Inject constructor(
     private val repository: HolidayRepository,
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
-    private val detailHolidayCache = mutableMapOf<String, Holiday>()
 
     private val _country = MutableStateFlow<String?>(null)
     private val _year = MutableStateFlow(Calendar.getInstance().get(Calendar.YEAR))
     private val _month = MutableStateFlow(Calendar.getInstance().get(Calendar.MONTH))
     private val _selectedDate = MutableStateFlow(LocalDate.now())
+    private val _showOnlyNotes = MutableStateFlow(false)
     private val _countriesState = MutableStateFlow(CountriesUi())
-    private val _favouriteActionError = MutableStateFlow<String?>(null)
-    private val _favouritesReload = MutableStateFlow(0)
-
     private val _refreshRequests = MutableSharedFlow<Unit>(
         extraBufferCapacity = 64,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
 
     init {
-        // Загружаем список стран и сохраненную страну
         loadCountries()
         viewModelScope.launch {
             settingsRepository.selectedCountryCode.first()?.let { savedCode ->
@@ -91,13 +87,13 @@ class HolidayViewModel @Inject constructor(
         _year.value = date.year
     }
 
+    fun onToggleShowOnlyNotes(show: Boolean) {
+        _showOnlyNotes.value = show
+    }
+
     fun goToToday() {
         val today = LocalDate.now()
         onDateSelected(today)
-    }
-
-    fun dismissFavouriteActionError() {
-        _favouriteActionError.value = null
     }
 
     fun onToggleNoteFavourite(id: String) {
@@ -129,14 +125,6 @@ class HolidayViewModel @Inject constructor(
     private val notesState: StateFlow<Map<String, List<Note>>> = repository.observeNotes()
         .map { notes -> notes.groupBy { it.date } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
-
-    private val favouritesOutcome: StateFlow<Result<List<Holiday>>> = _favouritesReload
-        .flatMapLatest {
-            repository.observeFavourites()
-                .map { Result.success(it) }
-                .catch { emit(Result.failure(it)) }
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Result.success(emptyList()))
 
     private val reloadTrigger = merge(
         combine(_country, _year) { c, y -> Triple(c, y, false) }.distinctUntilChanged(),
@@ -174,49 +162,56 @@ class HolidayViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HolidayListState.Empty)
 
-    private val calendarPrefs = combine(_year, _month, _selectedDate, _favouriteActionError, notesState) { y, m, d, err, notes ->
-        object {
-            val year = y
-            val month = m
-            val selectedDate = d
-            val favActionError = err
-            val notes = notes
-        }
+    private val calendarPrefs: Flow<CalendarPrefs> = combine(
+        _year,
+        _month,
+        _selectedDate,
+        notesState
+    ) { y, m, d, notes ->
+        CalendarPrefs(y, m, d, notes)
     }
 
     val uiState: StateFlow<HolidayUiState> = combine(
-        listState, 
-        _countriesState, 
-        _country, 
-        calendarPrefs, 
-        favouritesOutcome
-    ) { listSt, countriesSt, country, prefs, favOutcome ->
+        listState,
+        _countriesState,
+        _country,
+        calendarPrefs,
+        _showOnlyNotes
+    ) { listSt, countriesSt, country, prefs, showOnlyNotes ->
+        
+        // Скрываем праздники, если включен фильтр "Только избранные заметки"
+        val displayedListState = if (showOnlyNotes) {
+            HolidayListState.Empty 
+        } else {
+            listSt
+        }
+
+        // Фильтруем карту заметок для отображения в календаре только избранных
+        val filteredNotes = if (showOnlyNotes) {
+            prefs.notes.mapValues { entry -> 
+                entry.value.filter { it.isFavourite } 
+            }.filterValues { it.isNotEmpty() }
+        } else {
+            prefs.notes
+        }
+
         HolidayUiState(
             selectedCountryCode = country,
             selectedYear = prefs.year,
             selectedMonth = prefs.month,
             selectedDate = prefs.selectedDate,
-            favourites = favOutcome.getOrElse { emptyList() }.map { it.id }.toSet(),
-            notes = prefs.notes,
+            showOnlyNotes = showOnlyNotes,
+            notes = filteredNotes,
             countries = countriesSt.countries,
-            listState = listSt,
+            listState = displayedListState,
             isLoadingCountries = countriesSt.loading,
             countriesError = countriesSt.error,
-            favouritesError = favOutcome.exceptionOrNull()?.message,
-            favouriteActionError = prefs.favActionError
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HolidayUiState())
-
-    fun onToggleFavourite(holidayId: String) {
-        viewModelScope.launch {
-            val currentIds = favouritesOutcome.value.getOrElse { emptyList() }.map { it.id }.toSet()
-            if (holidayId in currentIds) repository.removeFavorite(holidayId)
-            else {
-                val holiday = findHolidayInMemory(holidayId)
-                if (holiday != null) repository.addFavorite(holiday)
-            }
-        }
-    }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = HolidayUiState()
+    )
 
     fun retry() { 
         if (uiState.value.countriesError != null) loadCountries()
@@ -248,6 +243,12 @@ class HolidayViewModel @Inject constructor(
     private fun findHolidayInMemory(holidayId: String): Holiday? {
         val listSt = listState.value
         return (listSt as? HolidayListState.Success)?.holidays?.firstOrNull { it.id == holidayId }
-            ?: favouritesOutcome.value.getOrElse { emptyList() }.firstOrNull { it.id == holidayId }
     }
 }
+
+private data class CalendarPrefs(
+    val year: Int,
+    val month: Int,
+    val selectedDate: LocalDate,
+    val notes: Map<String, List<Note>>
+)

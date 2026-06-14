@@ -47,6 +47,8 @@ dependencies {
     val room_version = "2.8.4"
     val work_version = "2.10.0"
 
+    implementation("androidx.compose.material:material-icons-extended")
+
     implementation("androidx.room:room-runtime:${room_version}")
     implementation("com.google.dagger:hilt-android:2.57.1")
     implementation("androidx.hilt:hilt-navigation-compose:1.3.0")

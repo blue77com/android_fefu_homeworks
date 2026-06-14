@@ -4,16 +4,12 @@ import com.example.android_fefu_homeworks.model.Country
 import com.example.android_fefu_homeworks.model.Holiday
 import com.example.android_fefu_homeworks.MainDispatcherRule
 import com.example.android_fefu_homeworks.FakeHolidayRepository
-import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
-import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.runCurrent
 
 class HolidayViewModelTest {
 
@@ -21,50 +17,13 @@ class HolidayViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     @Test
-    fun onToggleFavourite_whenHolidayNotInMemory_setsActionError_andDoesNotCallRepository() = runTest {
-        val repo = FakeHolidayRepository()
-        val vm = HolidayViewModel(repository = repo)
+    fun onToggleShowOnlyNotes_switchesNotesFilter() = runTest {
+        val vm = HolidayViewModel(repository = FakeHolidayRepository())
 
-        vm.onToggleFavourite("missing-id")
+        vm.onToggleShowOnlyNotes(true)
         advanceUntilIdle()
 
-        assertNotNull(vm.uiState.value.favouriteActionError)
-        assertEquals(0, repo.addFavoriteCalls)
-        assertEquals(0, repo.removeFavoriteCalls)
-    }
-
-    @Test
-    fun onQueryChange_debouncesFiltering_andUsesLatestQuery() = runTest {
-        val repo = FakeHolidayRepository(
-            favourites = emptyList(),
-            countries = emptyList(),
-            publicHolidaysProvider = { _, _ ->
-                listOf(
-                    holiday(name = "New Year", localName = "Новый год"),
-                    holiday(name = "Victory Day", localName = "День Победы"),
-                )
-            },
-        )
-        val vm = HolidayViewModel(repository = repo)
-
-        vm.onCountryChange("RU")
-        advanceUntilIdle()
-
-        vm.onQueryChange("new")
-        advanceTimeBy(200)
-        vm.onQueryChange("new y")
-        advanceTimeBy(200)
-        vm.onQueryChange("new ye")
-
-        runCurrent()
-        assertTrue(vm.uiState.value.query.isNotBlank())
-
-        advanceTimeBy(401)
-        advanceUntilIdle()
-
-        val state = vm.uiState.value.listState as HolidayListState.Success
-        assertEquals(1, state.holidays.size)
-        assertEquals("New Year", state.holidays.first().name)
+        assertTrue(vm.uiState.value.showOnlyNotes)
     }
 
     @Test
@@ -74,7 +33,6 @@ class HolidayViewModelTest {
             countries = listOf(Country("RU", "Russia")),
             publicHolidaysProvider = { _, _ -> emptyList() },
         )
-        repo.failFavourites = true
         repo.failCountries = true
         val vm = HolidayViewModel(repository = repo)
         advanceUntilIdle()
@@ -83,21 +41,18 @@ class HolidayViewModelTest {
         vm.onCountryChange("RU")
         advanceUntilIdle()
 
-        assertNotNull(vm.uiState.value.countriesError)
+        assertTrue(vm.uiState.value.countriesError != null)
         assertTrue(vm.uiState.value.listState is HolidayListState.Error)
 
-        repo.failFavourites = false
         repo.failCountries = false
         repo.failPublicHolidays = false
 
         vm.retry()
         advanceUntilIdle()
 
-        assertTrue(repo.observeFavouritesCalls >= 2)
         assertTrue(repo.getAvailableCountriesCalls >= 2)
         assertTrue(repo.getPublicHolidaysCalls >= 2)
         assertNull(vm.uiState.value.countriesError)
-        assertNull(vm.uiState.value.favouritesError)
     }
 
     private fun holiday(

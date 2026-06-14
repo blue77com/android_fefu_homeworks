@@ -1,20 +1,15 @@
 package com.example.android_fefu_homeworks.ui.screen
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTextInput
 import com.example.android_fefu_homeworks.model.Country
 import com.example.android_fefu_homeworks.model.Holiday
 import com.example.android_fefu_homeworks.ui.viewmodel.HolidayListState
 import com.example.android_fefu_homeworks.ui.viewmodel.HolidayUiState
-import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -24,85 +19,54 @@ class HolidayScreensUiTest {
     val composeTestRule = createComposeRule()
 
     @Test
-    fun holidayListScreen_searchFiltersToRelevantItem() {
-        val all = listOf(
-            holiday(name = "New Year's Day", localName = "Новый год"),
-            holiday(name = "Victory Day", localName = "День Победы"),
-        )
+    fun holidayListScreen_notesToggle_showsOnlyNotesMode() {
+        var showOnlyNotes = false
         val state = HolidayUiState(
-            listState = HolidayListState.Success(all),
             countries = listOf(Country("RU", "Russia")),
             selectedCountryCode = "RU",
+            listState = HolidayListState.Success(emptyList()),
         )
-        val lastQuery = mutableStateOf("")
 
         composeTestRule.setContent {
-            var currentState by mutableStateOf(state)
             MaterialTheme {
                 HolidayListScreen(
-                    state = currentState,
-                    onQueryChange = { query ->
-                        lastQuery.value = query
-                        currentState = currentState.copy(
-                            query = query,
-                            listState = HolidayListState.Success(
-                                all.filter {
-                                    it.name.contains(query, ignoreCase = true) ||
-                                        it.localName.contains(query, ignoreCase = true)
-                                },
-                            ),
-                        )
-                    },
+                    state = state.copy(showOnlyNotes = showOnlyNotes),
                     onCountryChange = {},
                     onYearChange = {},
-                    onFilterChange = {},
-                    onToggleFavourite = {},
+                    onMonthChange = {},
+                    onDateSelected = {},
+                    onGoToToday = {},
+                    onToggleShowOnlyNotes = { showOnlyNotes = it },
                     onHolidayClick = {},
+                    onAddNoteClick = {},
+                    onNoteClick = {},
+                    onToggleNoteFavourite = {},
+                    onDeleteNote = {},
                     onRetry = {},
                     onRefresh = {},
-                    onDismissFavouriteActionError = {},
                 )
             }
         }
 
-        composeTestRule.onNodeWithText("Поиск праздников").performTextInput("new")
-        composeTestRule.waitForIdle()
-        assertEquals("new", lastQuery.value)
-        composeTestRule.onNodeWithText("New Year's Day").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Victory Day").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Только избранные заметки").performClick()
+        assertTrue(showOnlyNotes)
     }
 
     @Test
-    fun holidayListScreen_clickFavoriteIcon_callsToggleWithHolidayId() {
-        val item = holiday(name = "New Year's Day", localName = "Новый год")
-        var toggledId: String? = null
-        val state = HolidayUiState(
-            countries = listOf(Country("RU", "Russia")),
-            selectedCountryCode = "RU",
-            listState = HolidayListState.Success(listOf(item)),
-        )
+    fun holidayDetailScreen_showsHolidayName() {
+        val holiday = holiday(name = "New Year's Day", localName = "Новый год")
 
         composeTestRule.setContent {
             MaterialTheme {
-                HolidayListScreen(
-                    state = state,
-                    onQueryChange = {},
-                    onCountryChange = {},
-                    onYearChange = {},
-                    onFilterChange = {},
-                    onToggleFavourite = { toggledId = it },
-                    onHolidayClick = {},
-                    onRetry = {},
-                    onRefresh = {},
-                    onDismissFavouriteActionError = {},
+                HolidayDetailScreen(
+                    holiday = holiday,
+                    onBackClick = {},
                 )
             }
         }
 
-        composeTestRule.onNodeWithContentDescription("Add to favourites").performClick()
-        assertEquals(item.id, toggledId)
+        composeTestRule.onNodeWithContentDescription("Назад").assertIsDisplayed()
     }
-
 
     private fun holiday(
         name: String,
@@ -119,4 +83,3 @@ class HolidayScreensUiTest {
         types = listOf("Public"),
     )
 }
-

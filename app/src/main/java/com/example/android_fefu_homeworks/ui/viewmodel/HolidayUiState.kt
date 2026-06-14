@@ -18,12 +18,10 @@ data class HolidayUiState(
     val selectedMonth: Int = Calendar.getInstance().get(Calendar.MONTH), // 0-11
     val selectedDate: LocalDate = LocalDate.now(),
     val selectedDayHolidays: List<Holiday> = emptyList(), // Праздники конкретно на выбранную дату
-    val favourites: Set<String> = emptySet(),
+    val showOnlyNotes: Boolean = false,
     val notes: Map<String, List<Note>> = emptyMap(),
     val countries: List<com.example.android_fefu_homeworks.model.Country> = emptyList(),
     val listState: HolidayListState = HolidayListState.Empty,
     val isLoadingCountries: Boolean = false,
     val countriesError: String? = null,
-    val favouritesError: String? = null,
-    val favouriteActionError: String? = null,
 )
