@@ -7,10 +7,16 @@ import androidx.room.RoomDatabase
     entities = [
         FavouriteHolidayEntity::class,
         FavouritesTypesEntity::class,
-        FavouritesCountiesEntity::class],
-    version = 1,
+        FavouritesCountiesEntity::class,
+        NoteEntity::class,
+        HolidayCacheEntity::class,
+        CountryEntity::class
+    ],
+    version = 4,
 )
-
 abstract class HolidayDatabase : RoomDatabase() {
     abstract fun favoriteHolidayDao(): FavoriteHolidayDao
+    abstract fun noteDao(): NoteDao
+    abstract fun holidayCacheDao(): HolidayCacheDao
+    abstract fun countryDao(): CountryDao
 }

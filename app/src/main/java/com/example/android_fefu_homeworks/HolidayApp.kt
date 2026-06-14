@@ -35,14 +35,17 @@ fun HolidayApp() {
         composable(HolidayRoute.List.route) {
             HolidayListScreen(
                 state = uiState,
-                onQueryChange = viewModel::onQueryChange,
                 onCountryChange = viewModel::onCountryChange,
                 onYearChange = viewModel::onYearChange,
-                onFilterChange = viewModel::onFilterChange,
+                onMonthChange = viewModel::onMonthChange,
+                onDateSelected = viewModel::onDateSelected,
+                onGoToToday = viewModel::goToToday,
                 onToggleFavourite = viewModel::onToggleFavourite,
                 onHolidayClick = { holidayId ->
                     navController.navigate(HolidayRoute.Detail.createRoute(holidayId))
                 },
+                onAddNote = viewModel::addNote,
+                onDeleteNote = viewModel::deleteNote,
                 onRetry = viewModel::retry,
                 onRefresh = viewModel::refresh,
                 onDismissFavouriteActionError = viewModel::dismissFavouriteActionError,

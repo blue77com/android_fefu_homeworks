@@ -3,13 +3,6 @@ package com.example.android_fefu_homeworks.ui.viewmodel
 import com.example.android_fefu_homeworks.model.Holiday
 import com.example.android_fefu_homeworks.model.HolidayFilter
 
-internal sealed interface ApiHolidaysState {
-    data object IdleNoCountry : ApiHolidaysState
-    data object Loading : ApiHolidaysState
-    data class Success(val holidays: List<Holiday>) : ApiHolidaysState
-    data class Error(val message: String) : ApiHolidaysState
-}
-
 internal object HolidayListPresentationBuilder {
     fun build(
         debouncedQuery: String,
