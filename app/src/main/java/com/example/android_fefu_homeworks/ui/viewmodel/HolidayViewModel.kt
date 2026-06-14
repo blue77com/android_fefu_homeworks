@@ -100,10 +100,24 @@ class HolidayViewModel @Inject constructor(
         _favouriteActionError.value = null
     }
 
-    fun addNote(date: String, text: String) {
+    fun onToggleNoteFavourite(id: String) {
         viewModelScope.launch {
-            repository.addNote(Note(date = date, text = text))
+            repository.toggleNoteFavourite(id)
         }
+    }
+
+    fun saveNote(note: Note) {
+        viewModelScope.launch {
+            if (repository.getNoteById(note.id) != null) {
+                repository.updateNote(note)
+            } else {
+                repository.addNote(note)
+            }
+        }
+    }
+
+    suspend fun getNoteById(id: String): Note? {
+        return repository.getNoteById(id)
     }
 
     fun deleteNote(id: String) {

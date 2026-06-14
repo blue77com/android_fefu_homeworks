@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,14 +34,14 @@ fun HolidayListScreen(
     onGoToToday: () -> Unit,
     onToggleFavourite: (String) -> Unit,
     onHolidayClick: (String) -> Unit,
-    onAddNote: (String, String) -> Unit,
+    onAddNoteClick: (LocalDate) -> Unit,
+    onNoteClick: (String) -> Unit,
+    onToggleNoteFavourite: (String) -> Unit,
     onDeleteNote: (String) -> Unit,
     onRetry: () -> Unit,
     onRefresh: () -> Unit,
     onDismissFavouriteActionError: () -> Unit,
 ) {
-    var noteText by remember { mutableStateOf("") }
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -198,7 +199,7 @@ fun HolidayListScreen(
                             supportingContent = { Text(holiday.name) },
                             leadingContent = {
                                 Icon(
-                                    imageVector = Icons.Default.Edit,
+                                    imageVector = Icons.Default.Info,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.secondary
                                 )
@@ -219,13 +220,26 @@ fun HolidayListScreen(
 
                 itemsIndexed(dayNotes) { _, note ->
                     Card(
+                        onClick = { onNoteClick(note.id) },
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f))
                     ) {
                         ListItem(
                             headlineContent = { Text(note.text) },
+                            supportingContent = if (note.description.isNotBlank()) {
+                                { Text(note.description, maxLines = 1) }
+                            } else null,
                             trailingContent = {
-                                IconButton(onClick = { onDeleteNote(note.id) }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Удалить", modifier = Modifier.size(20.dp))
+                                Row {
+                                    IconButton(onClick = { onToggleNoteFavourite(note.id) }) {
+                                        Icon(
+                                            if (note.isFavourite) Icons.Default.Favorite else Icons.Outlined.FavoriteBorder,
+                                            contentDescription = null,
+                                            tint = if (note.isFavourite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline
+                                        )
+                                    }
+                                    IconButton(onClick = { onDeleteNote(note.id) }) {
+                                        Icon(Icons.Default.Delete, contentDescription = "Удалить", modifier = Modifier.size(20.dp))
+                                    }
                                 }
                             },
                             leadingContent = {
@@ -234,28 +248,21 @@ fun HolidayListScreen(
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.secondary
                                 )
-                            }                        )
+                            }
+                        )
                     }
                 }
 
                 item {
-                    OutlinedTextField(
-                        value = noteText,
-                        onValueChange = { noteText = it },
-                        placeholder = { Text("Что планируете на этот день?") },
+                    Button(
+                        onClick = { onAddNoteClick(state.selectedDate) },
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        trailingIcon = {
-                            if (noteText.isNotBlank()) {
-                                IconButton(onClick = {
-                                    onAddNote(dateStr, noteText)
-                                    noteText = ""
-                                }) {
-                                    Icon(Icons.Default.CheckCircle, contentDescription = "Добавить", tint = MaterialTheme.colorScheme.primary)
-                                }
-                            }
-                        },
                         shape = RoundedCornerShape(12.dp)
-                    )
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Добавить событие или заметку")
+                    }
                 }
             }
         }

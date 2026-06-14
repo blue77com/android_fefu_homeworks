@@ -6,5 +6,7 @@ data class Note(
     val id: String = UUID.randomUUID().toString(),
     val date: String, // YYYY-MM-DD
     val text: String,
+    val description: String = "",
+    val isFavourite: Boolean = false,
     val holidayId: String? = null
 )

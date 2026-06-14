@@ -35,6 +35,9 @@ interface HolidayRepository {
     // Notes
     fun observeNotes(): Flow<List<Note>>
     suspend fun addNote(note: Note)
+    suspend fun updateNote(note: Note)
+    suspend fun toggleNoteFavourite(id: String)
+    suspend fun getNoteById(id: String): Note?
     suspend fun deleteNote(id: String)
 }
 
@@ -133,6 +136,18 @@ class HolidayRepositoryImpl @Inject constructor(
 
     override suspend fun addNote(note: Note) = withContext(Dispatchers.IO) {
         noteDao.insertNote(note.toEntity())
+    }
+
+    override suspend fun updateNote(note: Note) = withContext(Dispatchers.IO) {
+        noteDao.updateNote(note.toEntity())
+    }
+
+    override suspend fun toggleNoteFavourite(id: String) = withContext(Dispatchers.IO) {
+        noteDao.toggleNoteFavourite(id)
+    }
+
+    override suspend fun getNoteById(id: String): Note? = withContext(Dispatchers.IO) {
+        noteDao.getNoteById(id)?.toDomain()
     }
 
     override suspend fun deleteNote(id: String) = withContext(Dispatchers.IO) {

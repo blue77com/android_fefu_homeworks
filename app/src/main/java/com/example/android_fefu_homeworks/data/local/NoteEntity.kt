@@ -10,6 +10,8 @@ data class NoteEntity(
     val id: String,
     val date: String,
     val text: String,
+    val description: String,
+    val isFavourite: Boolean,
     val holidayId: String? = null
 )
 
@@ -17,6 +19,8 @@ fun NoteEntity.toDomain() = Note(
     id = id,
     date = date,
     text = text,
+    description = description,
+    isFavourite = isFavourite,
     holidayId = holidayId
 )
 
@@ -24,5 +28,7 @@ fun Note.toEntity() = NoteEntity(
     id = id,
     date = date,
     text = text,
+    description = description,
+    isFavourite = isFavourite,
     holidayId = holidayId
 )
