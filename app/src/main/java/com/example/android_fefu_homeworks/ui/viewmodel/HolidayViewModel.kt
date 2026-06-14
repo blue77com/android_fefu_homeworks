@@ -61,13 +61,28 @@ class HolidayViewModel @Inject constructor(
     }
 
     fun onYearChange(year: Int) {
-        _year.value = year
-        _selectedDate.value = _selectedDate.value.withYear(year)
+        val date = _selectedDate.value
+        val newDate = try {
+            date.withYear(year)
+        } catch (e: Exception) {
+            val lastDay = LocalDate.of(year, date.month, 1).lengthOfMonth()
+            date.withYear(year).withDayOfMonth(lastDay)
+        }
+        onDateSelected(newDate)
     }
 
     fun onMonthChange(month: Int) {
-        _month.value = month
-        _selectedDate.value = _selectedDate.value.withMonth(month + 1)
+        val date = _selectedDate.value
+        val newDate = when {
+            month < 0 -> date.minusMonths(1)
+            month > 11 -> date.plusMonths(1)
+            else -> {
+                val targetMonth = month + 1
+                val lastDay = LocalDate.of(date.year, targetMonth, 1).lengthOfMonth()
+                date.withMonth(targetMonth).withDayOfMonth(minOf(date.dayOfMonth, lastDay))
+            }
+        }
+        onDateSelected(newDate)
     }
 
     fun onDateSelected(date: LocalDate) {
@@ -145,16 +160,14 @@ class HolidayViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HolidayListState.Empty)
 
-    private data class CalendarPrefs(
-        val year: Int, 
-        val month: Int, 
-        val selectedDate: LocalDate, 
-        val favActionError: String?, 
-        val notes: Map<String, List<Note>>
-    )
-
     private val calendarPrefs = combine(_year, _month, _selectedDate, _favouriteActionError, notesState) { y, m, d, err, notes ->
-        CalendarPrefs(y, m, d, err, notes)
+        object {
+            val year = y
+            val month = m
+            val selectedDate = d
+            val favActionError = err
+            val notes = notes
+        }
     }
 
     val uiState: StateFlow<HolidayUiState> = combine(

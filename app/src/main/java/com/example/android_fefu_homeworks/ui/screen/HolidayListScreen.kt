@@ -1,5 +1,6 @@
 package com.example.android_fefu_homeworks.ui.screen
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -11,15 +12,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import com.example.android_fefu_homeworks.ui.viewmodel.HolidayListState
 import com.example.android_fefu_homeworks.ui.viewmodel.HolidayUiState
 import com.example.android_fefu_homeworks.ui.widget.CalendarWidget
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
-import androidx.compose.foundation.clickable
-import androidx.compose.ui.window.Dialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,31 +77,52 @@ fun HolidayListScreen(
             // Навигация по датам
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                MonthSelector(
-                    modifier = Modifier.weight(1.5f),
-                    selectedMonth = state.selectedMonth,
-                    onMonthSelected = onMonthChange
-                )
+                // Выбор месяца с перелистыванием (без всплывающего списка)
+                val monthName = remember(state.selectedMonth) {
+                    java.time.Month.of(state.selectedMonth + 1)
+                        .getDisplayName(TextStyle.FULL, Locale("ru"))
+                        .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale("ru")) else it.toString() }
+                }
 
+                Row(
+                    modifier = Modifier.weight(1.5f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { onMonthChange(state.selectedMonth - 1) }) {
+                        Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Предыдущий месяц")
+                    }
+                    Text(
+                        text = monthName,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(onClick = { onMonthChange(state.selectedMonth + 1) }) {
+                        Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Следующий месяц")
+                    }
+                }
+
+                // Выбор года с перелистыванием
                 Row(
                     modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = { onYearChange(state.selectedYear - 1) }) {
-                        Icon(Icons.Default.KeyboardArrowLeft, contentDescription = null)
+                        Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Предыдущий год")
                     }
                     Text(
                         text = state.selectedYear.toString(),
                         modifier = Modifier.weight(1f),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold
                     )
                     IconButton(onClick = { onYearChange(state.selectedYear + 1) }) {
-                        Icon(Icons.Default.KeyboardArrowRight, contentDescription = null)
+                        Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Следующий год")
                     }
                 }
             }
@@ -240,49 +262,6 @@ fun HolidayListScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun MonthSelector(
-    modifier: Modifier = Modifier,
-    selectedMonth: Int,
-    onMonthSelected: (Int) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val months = (0..11).map { 
-        java.time.Month.of(it + 1).getDisplayName(TextStyle.FULL, Locale("ru"))
-            .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale("ru")) else it.toString() }
-    }
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = !expanded },
-        modifier = modifier
-    ) {
-        OutlinedTextField(
-            value = months[selectedMonth],
-            onValueChange = {},
-            readOnly = true,
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable),
-            textStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            months.forEachIndexed { index, name ->
-                DropdownMenuItem(
-                    text = { Text(name) },
-                    onClick = {
-                        onMonthSelected(index)
-                        expanded = false
-                    }
-                )
-            }
-        }
-    }
-}
-
 @Composable
 fun CountrySelector(
     countries: List<com.example.android_fefu_homeworks.model.Country>,
@@ -307,7 +286,7 @@ fun CountrySelector(
             Spacer(Modifier.width(8.dp))
             Text(
                 text = selectedCountry?.name ?: "Выберите вашу страну",
-                textAlign = androidx.compose.ui.text.style.TextAlign.Start
+                textAlign = TextAlign.Start
             )
         }
         Icon(Icons.Default.ArrowDropDown, contentDescription = null)
