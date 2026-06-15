@@ -47,6 +47,7 @@ dependencies {
     val room_version = "2.8.4"
     val work_version = "2.10.0"
 
+    implementation(libs.androidx.core.splashscreen)
     implementation("androidx.compose.material:material-icons-extended")
 
     implementation("androidx.room:room-runtime:${room_version}")

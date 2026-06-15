@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -17,8 +18,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.android_fefu_homeworks.model.Holiday
 import com.example.android_fefu_homeworks.model.Note
+import com.example.android_fefu_homeworks.model.RepeatMode
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.temporal.ChronoUnit
+import kotlin.math.abs
 
 @Composable
 fun CalendarWidget(
@@ -43,8 +47,9 @@ fun CalendarWidget(
         }
     }.groupBy { LocalDate.parse(it.date).dayOfMonth }
 
+    val allNotesList = remember(notes) { notes.values.flatten() }
+
     Column(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
-        // Заголовки дней недели
         Row(modifier = Modifier.fillMaxWidth()) {
             val daysOfWeek = listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
             daysOfWeek.forEach { day ->
@@ -81,16 +86,25 @@ fun CalendarWidget(
                         ) {
                             if (dayOfMonth in 1..daysInMonth) {
                                 val currentDate = yearMonth.atDay(dayOfMonth)
-                                val dateStr = currentDate.toString()
-                                val hasHoliday = holidaysByDay.containsKey(dayOfMonth)
-                                val hasNotes = !notes[dateStr].isNullOrEmpty()
+                                
+                                val dayNotes = allNotesList.filter { note ->
+                                    val startDate = LocalDate.parse(note.date)
+                                    when (note.repeatMode) {
+                                        RepeatMode.NONE -> note.date == currentDate.toString()
+                                        RepeatMode.WEEKLY -> abs(ChronoUnit.DAYS.between(startDate, currentDate)) % 7 == 0L
+                                        RepeatMode.MONTHLY -> currentDate.dayOfMonth == startDate.dayOfMonth
+                                        RepeatMode.YEARLY -> currentDate.dayOfMonth == startDate.dayOfMonth && currentDate.month == startDate.month
+                                    }
+                                }
+
                                 val isSelected = currentDate == selectedDate
                                 val isToday = currentDate == today
+                                val hasHoliday = holidaysByDay.containsKey(dayOfMonth)
                                 
                                 DayCell(
                                     day = dayOfMonth,
                                     isHoliday = hasHoliday,
-                                    hasNotes = hasNotes,
+                                    notes = dayNotes,
                                     isSelected = isSelected,
                                     isToday = isToday,
                                     onClick = { onDayClick(currentDate) }
@@ -108,7 +122,7 @@ fun CalendarWidget(
 fun DayCell(
     day: Int, 
     isHoliday: Boolean, 
-    hasNotes: Boolean, 
+    notes: List<Note>, 
     isSelected: Boolean,
     isToday: Boolean,
     onClick: () -> Unit
@@ -151,10 +165,10 @@ fun DayCell(
                 color = contentColor
             )
             
-            // Индикаторы под числом
             Row(
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
-                modifier = Modifier.padding(top = 1.dp)
+                modifier = Modifier.padding(top = 1.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 if (isHoliday) {
                     Box(
@@ -164,12 +178,13 @@ fun DayCell(
                             .background(if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary)
                     )
                 }
-                if (hasNotes) {
+                
+                notes.distinctBy { it.category }.take(3).forEach { note ->
                     Box(
                         modifier = Modifier
                             .size(4.dp)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.secondary)
+                            .background(Color(note.category.colorHex))
                     )
                 }
             }

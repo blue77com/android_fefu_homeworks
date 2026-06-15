@@ -7,14 +7,17 @@ import com.example.android_fefu_homeworks.data.SettingsRepository
 import com.example.android_fefu_homeworks.model.Holiday
 import com.example.android_fefu_homeworks.model.Country
 import com.example.android_fefu_homeworks.model.Note
+import com.example.android_fefu_homeworks.model.RepeatMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 import java.util.Calendar
 import javax.inject.Inject
+import kotlin.math.abs
 
 sealed class ApiHolidaysState {
     data object IdleNoCountry : ApiHolidaysState()
@@ -29,7 +32,9 @@ class HolidayViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
-    private val _country = MutableStateFlow<String?>(null)
+    private val _country = settingsRepository.selectedCountryCode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+        
     private val _year = MutableStateFlow(Calendar.getInstance().get(Calendar.YEAR))
     private val _month = MutableStateFlow(Calendar.getInstance().get(Calendar.MONTH))
     private val _selectedDate = MutableStateFlow(LocalDate.now())
@@ -42,18 +47,6 @@ class HolidayViewModel @Inject constructor(
 
     init {
         loadCountries()
-        viewModelScope.launch {
-            settingsRepository.selectedCountryCode.first()?.let { savedCode ->
-                _country.value = savedCode
-            }
-        }
-    }
-
-    fun onCountryChange(countryCode: String) {
-        _country.value = countryCode
-        viewModelScope.launch {
-            settingsRepository.saveCountryCode(countryCode)
-        }
     }
 
     fun onYearChange(year: Int) {
@@ -179,14 +172,12 @@ class HolidayViewModel @Inject constructor(
         _showOnlyNotes
     ) { listSt, countriesSt, country, prefs, showOnlyNotes ->
         
-        // Скрываем праздники, если включен фильтр "Только избранные заметки"
         val displayedListState = if (showOnlyNotes) {
             HolidayListState.Empty 
         } else {
             listSt
         }
 
-        // Фильтруем карту заметок для отображения в календаре только избранных
         val filteredNotes = if (showOnlyNotes) {
             prefs.notes.mapValues { entry -> 
                 entry.value.filter { it.isFavourite } 
@@ -209,7 +200,7 @@ class HolidayViewModel @Inject constructor(
         )
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
+        started = SharingStarted.WhileSubscribed(5000),
         initialValue = HolidayUiState()
     )
 

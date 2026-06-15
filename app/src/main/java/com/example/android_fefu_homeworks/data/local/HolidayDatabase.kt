@@ -2,6 +2,7 @@ package com.example.android_fefu_homeworks.data.local
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.TypeConverters
 
 @Database(
     entities = [
@@ -12,8 +13,9 @@ import androidx.room.RoomDatabase
         HolidayCacheEntity::class,
         CountryEntity::class
     ],
-    version = 4,
+    version = 5,
 )
+@TypeConverters(NoteConverters::class)
 abstract class HolidayDatabase : RoomDatabase() {
     abstract fun favoriteHolidayDao(): FavoriteHolidayDao
     abstract fun noteDao(): NoteDao

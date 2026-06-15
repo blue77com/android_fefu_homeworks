@@ -48,7 +48,6 @@ fun HolidayApp() {
         composable(HolidayRoute.List.route) {
             HolidayListScreen(
                 state = uiState,
-                onCountryChange = viewModel::onCountryChange,
                 onYearChange = viewModel::onYearChange,
                 onMonthChange = viewModel::onMonthChange,
                 onDateSelected = viewModel::onDateSelected,
