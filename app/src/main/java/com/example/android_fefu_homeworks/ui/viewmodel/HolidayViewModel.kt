@@ -105,6 +105,16 @@ class HolidayViewModel @Inject constructor(
         }
     }
 
+    fun toggleChecklistItem(noteId: String, itemId: String) {
+        viewModelScope.launch {
+            val note = repository.getNoteById(noteId) ?: return@launch
+            val updatedChecklist = note.checklist.map {
+                if (it.id == itemId) it.copy(isChecked = !it.isChecked) else it
+            }
+            repository.updateNote(note.copy(checklist = updatedChecklist))
+        }
+    }
+
     suspend fun getNoteById(id: String): Note? {
         return repository.getNoteById(id)
     }
@@ -171,7 +181,6 @@ class HolidayViewModel @Inject constructor(
         calendarPrefs,
         _showOnlyNotes
     ) { listSt, countriesSt, country, prefs, showOnlyNotes ->
-        
         val displayedListState = if (showOnlyNotes) {
             HolidayListState.Empty 
         } else {
@@ -186,8 +195,11 @@ class HolidayViewModel @Inject constructor(
             prefs.notes
         }
 
+        val countryName = countriesSt.countries.find { it.countryCode == country }?.name
+
         HolidayUiState(
             selectedCountryCode = country,
+            selectedCountryName = countryName,
             selectedYear = prefs.year,
             selectedMonth = prefs.month,
             selectedDate = prefs.selectedDate,

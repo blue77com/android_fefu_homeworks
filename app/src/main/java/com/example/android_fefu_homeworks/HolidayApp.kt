@@ -67,6 +67,7 @@ fun HolidayApp() {
                 },
                 onToggleNoteFavourite = viewModel::onToggleNoteFavourite,
                 onDeleteNote = viewModel::deleteNote,
+                onToggleChecklistItem = viewModel::toggleChecklistItem,
                 onRetry = viewModel::retry,
                 onRefresh = viewModel::refresh,
                 onSettingsClick = {

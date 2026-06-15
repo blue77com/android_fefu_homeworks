@@ -14,6 +14,7 @@ sealed class HolidayListState {
 
 data class HolidayUiState(
     val selectedCountryCode: String? = null,
+    val selectedCountryName: String? = null,
     val selectedYear: Int = Calendar.getInstance().get(Calendar.YEAR),
     val selectedMonth: Int = Calendar.getInstance().get(Calendar.MONTH), // 0-11
     val selectedDate: LocalDate = LocalDate.now(),

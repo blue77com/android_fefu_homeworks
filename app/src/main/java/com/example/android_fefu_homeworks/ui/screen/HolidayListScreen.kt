@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.example.android_fefu_homeworks.model.RepeatMode
@@ -40,6 +41,7 @@ fun HolidayListScreen(
     onNoteClick: (String) -> Unit,
     onToggleNoteFavourite: (String) -> Unit,
     onDeleteNote: (String) -> Unit,
+    onToggleChecklistItem: (String, String) -> Unit,
     onRetry: () -> Unit,
     onRefresh: () -> Unit,
     onSettingsClick: () -> Unit,
@@ -48,7 +50,7 @@ fun HolidayListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Мой Календарь") },
+                title = { Text(state.selectedCountryName ?: "Мой Календарь") },
                 actions = {
                     IconButton(onClick = onHistoryClick) {
                         Icon(Icons.Default.List, contentDescription = "История заметок")
@@ -244,10 +246,45 @@ fun HolidayListScreen(
                         ListItem(
                             headlineContent = { Text(note.text) },
                             supportingContent = {
-                                Column {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     if (note.description.isNotBlank()) {
-                                        Text(note.description, maxLines = 1)
+                                        Text(note.description, maxLines = 2)
                                     }
+
+                                    if (note.checklist.isNotEmpty()) {
+                                        Column(modifier = Modifier.padding(top = 4.dp)) {
+                                            note.checklist.take(3).forEach { item ->
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                    modifier = Modifier.clickable { onToggleChecklistItem(note.id, item.id) }
+                                                ) {
+                                                    Icon(
+                                                        imageVector = if (item.isChecked) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(16.dp),
+                                                        tint = if (item.isChecked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                                                    )
+                                                    Text(
+                                                        text = item.text,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        textDecoration = if (item.isChecked) TextDecoration.LineThrough else null,
+                                                        color = if (item.isChecked) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onSurface,
+                                                        maxLines = 1
+                                                    )
+                                                }
+                                            }
+                                            if (note.checklist.size > 3) {
+                                                Text(
+                                                    "Еще ${note.checklist.size - 3}...",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.padding(start = 20.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+
                                     val isOriginal = note.date == dateStr
                                     val labelText = when {
                                         state.showOnlyNotes -> "Дата: ${note.date}"
