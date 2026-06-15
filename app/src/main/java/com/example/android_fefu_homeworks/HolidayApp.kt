@@ -12,10 +12,12 @@ import com.example.android_fefu_homeworks.model.Note
 import com.example.android_fefu_homeworks.ui.screen.HolidayDetailScreen
 import com.example.android_fefu_homeworks.ui.screen.HolidayListScreen
 import com.example.android_fefu_homeworks.ui.screen.NoteDetailScreen
+import com.example.android_fefu_homeworks.ui.screen.SettingsScreen
 import com.example.android_fefu_homeworks.ui.viewmodel.HolidayViewModel
 
 sealed class HolidayRoute(val route: String) {
     data object List : HolidayRoute("list")
+    data object Settings : HolidayRoute("settings")
     data object Detail : HolidayRoute("detail/{holidayId}") {
         const val ARG_HOLIDAY_ID = "holidayId"
         fun createRoute(holidayId: String): String = "detail/${Uri.encode(holidayId)}"
@@ -65,6 +67,15 @@ fun HolidayApp() {
                 onDeleteNote = viewModel::deleteNote,
                 onRetry = viewModel::retry,
                 onRefresh = viewModel::refresh,
+                onSettingsClick = {
+                    navController.navigate(HolidayRoute.Settings.route)
+                }
+            )
+        }
+
+        composable(HolidayRoute.Settings.route) {
+            SettingsScreen(
+                onBackClick = { navController.popBackStack() }
             )
         }
 

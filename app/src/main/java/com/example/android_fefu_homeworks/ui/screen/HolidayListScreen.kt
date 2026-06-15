@@ -40,6 +40,7 @@ fun HolidayListScreen(
     onDeleteNote: (String) -> Unit,
     onRetry: () -> Unit,
     onRefresh: () -> Unit,
+    onSettingsClick: () -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -65,6 +66,9 @@ fun HolidayListScreen(
                         enabled = state.selectedCountryCode != null && state.listState !is HolidayListState.Loading
                     ) {
                         Icon(Icons.Default.Refresh, contentDescription = "Обновить")
+                    }
+                    IconButton(onClick = onSettingsClick) {
+                        Icon(Icons.Default.Settings, contentDescription = "Настройки")
                     }
                 }
             )
