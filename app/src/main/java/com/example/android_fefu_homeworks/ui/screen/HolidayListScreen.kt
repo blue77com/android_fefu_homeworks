@@ -40,13 +40,18 @@ fun HolidayListScreen(
     onDeleteNote: (String) -> Unit,
     onRetry: () -> Unit,
     onRefresh: () -> Unit,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    onHistoryClick: () -> Unit
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Мой Календарь") },
                 actions = {
+                    // Кнопка истории заметок
+                    IconButton(onClick = onHistoryClick) {
+                        Icon(Icons.Default.List, contentDescription = "История заметок")
+                    }
                     // Кнопка-переключатель режима "Только заметки"
                     IconToggleButton(
                         checked = state.showOnlyNotes,

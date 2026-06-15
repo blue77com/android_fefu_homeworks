@@ -12,12 +12,15 @@ import com.example.android_fefu_homeworks.model.Note
 import com.example.android_fefu_homeworks.ui.screen.HolidayDetailScreen
 import com.example.android_fefu_homeworks.ui.screen.HolidayListScreen
 import com.example.android_fefu_homeworks.ui.screen.NoteDetailScreen
+import com.example.android_fefu_homeworks.ui.screen.NotesHistoryScreen
 import com.example.android_fefu_homeworks.ui.screen.SettingsScreen
 import com.example.android_fefu_homeworks.ui.viewmodel.HolidayViewModel
+import java.time.LocalDate
 
 sealed class HolidayRoute(val route: String) {
     data object List : HolidayRoute("list")
     data object Settings : HolidayRoute("settings")
+    data object History : HolidayRoute("history")
     data object Detail : HolidayRoute("detail/{holidayId}") {
         const val ARG_HOLIDAY_ID = "holidayId"
         fun createRoute(holidayId: String): String = "detail/${Uri.encode(holidayId)}"
@@ -69,12 +72,27 @@ fun HolidayApp() {
                 onRefresh = viewModel::refresh,
                 onSettingsClick = {
                     navController.navigate(HolidayRoute.Settings.route)
+                },
+                onHistoryClick = {
+                    navController.navigate(HolidayRoute.History.route)
                 }
             )
         }
 
         composable(HolidayRoute.Settings.route) {
             SettingsScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable(HolidayRoute.History.route) {
+            val allNotes = uiState.notes.values.flatten().sortedByDescending { it.date }
+            NotesHistoryScreen(
+                notes = allNotes,
+                onNoteClick = { note ->
+                    viewModel.onDateSelected(LocalDate.parse(note.date))
+                    navController.popBackStack(HolidayRoute.List.route, inclusive = false)
+                },
                 onBackClick = { navController.popBackStack() }
             )
         }
