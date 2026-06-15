@@ -1,6 +1,9 @@
 package com.example.android_fefu_homeworks.model
 
+import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 import java.util.UUID
+import kotlin.math.abs
 
 enum class NoteCategory(val displayName: String, val colorHex: Long) {
     PERSONAL("Личное", 0xFF9C27B0),
@@ -32,3 +35,19 @@ data class Note(
     val repeatMode: RepeatMode = RepeatMode.NONE,
     val checklist: List<ChecklistItem> = emptyList()
 )
+
+fun Note.occursOn(currentDate: LocalDate): Boolean {
+    val startDate = try {
+        LocalDate.parse(date)
+    } catch (_: Exception) {
+        return false
+    }
+    if (date == currentDate.toString()) return true
+    return when (repeatMode) {
+        RepeatMode.NONE -> false
+        RepeatMode.WEEKLY -> abs(ChronoUnit.DAYS.between(startDate, currentDate)) % 7 == 0L
+        RepeatMode.MONTHLY -> currentDate.dayOfMonth == startDate.dayOfMonth
+        RepeatMode.YEARLY ->
+            currentDate.dayOfMonth == startDate.dayOfMonth && currentDate.month == startDate.month
+    }
+}

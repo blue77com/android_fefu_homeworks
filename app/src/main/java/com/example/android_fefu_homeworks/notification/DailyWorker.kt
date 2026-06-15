@@ -22,33 +22,29 @@ class DailyWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result {
         val today = LocalDate.now()
-        val todayStr = today.toString()
         val year = today.year
-        val events = mutableListOf<String>()
-
         val allNotes = repository.observeNotes().first()
-        allNotes
-            .filter { it.date == todayStr }
-            .forEach { note ->
-                val prefix = if (note.isFavourite) "Избранная заметка" else "Заметка"
-                events.add("$prefix: ${note.text}")
-            }
 
         val countryCode = settingsRepository.selectedCountryCode.first()
-        if (countryCode != null) {
+        val holidays = if (countryCode != null) {
             try {
                 repository.refreshPublicHolidays(year, countryCode)
             } catch (_: Exception) {
             }
-
             try {
-                val holidays = repository.observePublicHolidays(year, countryCode).first()
-                holidays
-                    .filter { it.date == todayStr }
-                    .forEach { events.add("Праздник: ${it.localName}") }
+                repository.observePublicHolidays(year, countryCode).first()
             } catch (_: Exception) {
+                emptyList()
             }
+        } else {
+            emptyList()
         }
+
+        val events = DailyEventFormatter.eventsForToday(
+            notes = allNotes,
+            holidays = holidays,
+            today = today,
+        )
 
         if (events.isNotEmpty()) {
             notificationHelper.showDailyNotification(

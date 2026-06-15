@@ -18,14 +18,13 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.example.android_fefu_homeworks.model.RepeatMode
+import com.example.android_fefu_homeworks.model.occursOn
 import com.example.android_fefu_homeworks.ui.viewmodel.HolidayListState
 import com.example.android_fefu_homeworks.ui.viewmodel.HolidayUiState
 import com.example.android_fefu_homeworks.ui.widget.CalendarWidget
 import java.time.LocalDate
 import java.time.format.TextStyle
-import java.time.temporal.ChronoUnit
 import java.util.Locale
-import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -217,17 +216,7 @@ fun HolidayListScreen(
             val dayNotes = if (state.showOnlyNotes) {
                 allNotes.filter { it.isFavourite }
             } else {
-                allNotes.filter { note ->
-                    if (note.date == dateStr) return@filter true
-                    val startDate = try { LocalDate.parse(note.date) } catch(e: Exception) { return@filter false }
-                    val currentDate = state.selectedDate
-                    when (note.repeatMode) {
-                        RepeatMode.NONE -> false
-                        RepeatMode.WEEKLY -> abs(ChronoUnit.DAYS.between(startDate, currentDate)) % 7 == 0L
-                        RepeatMode.MONTHLY -> currentDate.dayOfMonth == startDate.dayOfMonth
-                        RepeatMode.YEARLY -> currentDate.dayOfMonth == startDate.dayOfMonth && currentDate.month == startDate.month
-                    }
-                }
+                allNotes.filter { it.occursOn(state.selectedDate) }
             }
 
             Row(

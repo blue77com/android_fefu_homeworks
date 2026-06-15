@@ -3,10 +3,13 @@ package com.example.android_fefu_homeworks.ui.viewmodel
 import com.example.android_fefu_homeworks.FakeHolidayRepository
 import com.example.android_fefu_homeworks.MainDispatcherRule
 import com.example.android_fefu_homeworks.fakeSettingsRepository
+import com.example.android_fefu_homeworks.model.ChecklistItem
 import com.example.android_fefu_homeworks.model.Country
 import com.example.android_fefu_homeworks.model.Holiday
-import com.example.android_fefu_homeworks.model.ChecklistItem
 import com.example.android_fefu_homeworks.model.Note
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -20,12 +23,18 @@ class HolidayViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
 
+    private fun TestScope.collectUiState(vm: HolidayViewModel) {
+        backgroundScope.launch { vm.uiState.collect() }
+    }
+
     @Test
     fun onToggleShowOnlyNotes_switchesNotesFilter() = runTest {
         val vm = HolidayViewModel(
             repository = FakeHolidayRepository(),
             settingsRepository = fakeSettingsRepository(),
         )
+        collectUiState(vm)
+        advanceUntilIdle()
 
         vm.onToggleShowOnlyNotes(true)
         advanceUntilIdle()
@@ -44,6 +53,7 @@ class HolidayViewModelTest {
             repository = repo,
             settingsRepository = fakeSettingsRepository("RU"),
         )
+        collectUiState(vm)
         advanceUntilIdle()
 
         assertTrue(vm.uiState.value.listState is HolidayListState.Error)
@@ -63,14 +73,16 @@ class HolidayViewModelTest {
             repository = FakeHolidayRepository(),
             settingsRepository = fakeSettingsRepository(),
         )
+        collectUiState(vm)
         advanceUntilIdle()
 
-        val initialMonth = vm.uiState.value.selectedDate.monthValue
-        vm.onMonthChange(vm.uiState.value.selectedMonth + 1)
+        vm.onDateSelected(LocalDate.of(2026, 6, 15))
         advanceUntilIdle()
 
-        val expectedMonth = if (initialMonth == 12) 1 else initialMonth + 1
-        assertEquals(expectedMonth, vm.uiState.value.selectedDate.monthValue)
+        vm.onMonthChange(6) // июнь (индекс 5) + 1 → июль
+        advanceUntilIdle()
+
+        assertEquals(7, vm.uiState.value.selectedDate.monthValue)
     }
 
     @Test
@@ -79,6 +91,7 @@ class HolidayViewModelTest {
             repository = FakeHolidayRepository(),
             settingsRepository = fakeSettingsRepository(initialCountryCode = null),
         )
+        collectUiState(vm)
         advanceUntilIdle()
 
         assertEquals(null, vm.uiState.value.selectedCountryCode)
@@ -101,6 +114,7 @@ class HolidayViewModelTest {
             repository = repo,
             settingsRepository = fakeSettingsRepository(),
         )
+        collectUiState(vm)
         advanceUntilIdle()
 
         vm.toggleChecklistItem("note-1", itemIndex = 0)
@@ -118,6 +132,7 @@ class HolidayViewModelTest {
             repository = repo,
             settingsRepository = fakeSettingsRepository(),
         )
+        collectUiState(vm)
         advanceUntilIdle()
 
         val note = Note(id = "new-note", date = "2026-07-01", text = "Новая заметка")
@@ -125,6 +140,41 @@ class HolidayViewModelTest {
         advanceUntilIdle()
 
         assertEquals("Новая заметка", repo.getNoteById("new-note")?.text)
+    }
+
+    @Test
+    fun onToggleNoteFavourite_flipsFavouriteFlag() = runTest {
+        val note = Note(id = "note-1", date = "2026-06-15", text = "Заметка", isFavourite = false)
+        val repo = FakeHolidayRepository(initialNotes = listOf(note))
+        val vm = HolidayViewModel(
+            repository = repo,
+            settingsRepository = fakeSettingsRepository(),
+        )
+        collectUiState(vm)
+        advanceUntilIdle()
+
+        vm.onToggleNoteFavourite("note-1")
+        advanceUntilIdle()
+
+        assertTrue(repo.getNoteById("note-1")!!.isFavourite)
+    }
+
+    @Test
+    fun deleteNote_removesNoteFromRepository() = runTest {
+        val repo = FakeHolidayRepository(
+            initialNotes = listOf(Note(id = "note-1", date = "2026-06-15", text = "Удалить меня")),
+        )
+        val vm = HolidayViewModel(
+            repository = repo,
+            settingsRepository = fakeSettingsRepository(),
+        )
+        collectUiState(vm)
+        advanceUntilIdle()
+
+        vm.deleteNote("note-1")
+        advanceUntilIdle()
+
+        assertEquals(null, repo.getNoteById("note-1"))
     }
 
     private fun testHoliday(

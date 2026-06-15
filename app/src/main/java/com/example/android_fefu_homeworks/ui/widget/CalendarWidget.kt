@@ -18,11 +18,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.android_fefu_homeworks.model.Holiday
 import com.example.android_fefu_homeworks.model.Note
-import com.example.android_fefu_homeworks.model.RepeatMode
+import com.example.android_fefu_homeworks.model.occursOn
 import java.time.LocalDate
 import java.time.YearMonth
-import java.time.temporal.ChronoUnit
-import kotlin.math.abs
 
 @Composable
 fun CalendarWidget(
@@ -88,13 +86,7 @@ fun CalendarWidget(
                                 val currentDate = yearMonth.atDay(dayOfMonth)
                                 
                                 val dayNotes = allNotesList.filter { note ->
-                                    val startDate = LocalDate.parse(note.date)
-                                    when (note.repeatMode) {
-                                        RepeatMode.NONE -> note.date == currentDate.toString()
-                                        RepeatMode.WEEKLY -> abs(ChronoUnit.DAYS.between(startDate, currentDate)) % 7 == 0L
-                                        RepeatMode.MONTHLY -> currentDate.dayOfMonth == startDate.dayOfMonth
-                                        RepeatMode.YEARLY -> currentDate.dayOfMonth == startDate.dayOfMonth && currentDate.month == startDate.month
-                                    }
+                                    note.occursOn(currentDate)
                                 }
 
                                 val isSelected = currentDate == selectedDate
