@@ -3,6 +3,7 @@ package com.example.android_fefu_homeworks
 import android.net.Uri
 import androidx.compose.runtime.*
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.example.android_fefu_homeworks.model.Holiday
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -65,11 +66,11 @@ fun HolidayApp() {
                         navController.navigate(HolidayRoute.NoteDetail.createRoute(note.date, noteId))
                     }
                 },
-                onToggleNoteFavourite = viewModel::onToggleNoteFavourite,
-                onDeleteNote = viewModel::deleteNote,
+                onToggleNoteFavourite = { id -> viewModel.onToggleNoteFavourite(id) },
+                onDeleteNote = { id -> viewModel.deleteNote(id) },
                 onToggleChecklistItem = viewModel::toggleChecklistItem,
-                onRetry = viewModel::retry,
-                onRefresh = viewModel::refresh,
+                onRetry = { viewModel.retry() },
+                onRefresh = { viewModel.refresh() },
                 onSettingsClick = {
                     navController.navigate(HolidayRoute.Settings.route)
                 },
@@ -99,22 +100,20 @@ fun HolidayApp() {
 
         composable(
             route = HolidayRoute.Detail.route,
-            arguments = listOf(
-                navArgument(HolidayRoute.Detail.ARG_HOLIDAY_ID) {
-                    type = NavType.StringType
-                }
-            )
+            arguments = listOf(navArgument(HolidayRoute.Detail.ARG_HOLIDAY_ID) { type = NavType.StringType })
         ) { backStackEntry ->
-            val holidayId = Uri.decode(
-                backStackEntry.arguments?.getString(HolidayRoute.Detail.ARG_HOLIDAY_ID) ?: ""
-            )
-            val holiday = viewModel.getHolidayById(holidayId)
+            val holidayId = Uri.decode(backStackEntry.arguments?.getString(HolidayRoute.Detail.ARG_HOLIDAY_ID) ?: "")
+
+            val holiday by produceState<Holiday?>(initialValue = null, key1 = holidayId) {
+                value = viewModel.getHolidayById(holidayId)
+            }
 
             HolidayDetailScreen(
                 holiday = holiday,
                 onBackClick = { navController.popBackStack() },
             )
         }
+
 
         composable(
             route = HolidayRoute.NoteDetail.route,

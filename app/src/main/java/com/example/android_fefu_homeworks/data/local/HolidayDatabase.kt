@@ -6,18 +6,15 @@ import androidx.room.TypeConverters
 
 @Database(
     entities = [
-        FavouriteHolidayEntity::class,
-        FavouritesTypesEntity::class,
-        FavouritesCountiesEntity::class,
         NoteEntity::class,
         HolidayCacheEntity::class,
-        CountryEntity::class
+        CountryEntity::class,
     ],
-    version = 5,
+    version = 7,
+    exportSchema = false,
 )
 @TypeConverters(NoteConverters::class)
 abstract class HolidayDatabase : RoomDatabase() {
-    abstract fun favoriteHolidayDao(): FavoriteHolidayDao
     abstract fun noteDao(): NoteDao
     abstract fun holidayCacheDao(): HolidayCacheDao
     abstract fun countryDao(): CountryDao

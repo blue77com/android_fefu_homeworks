@@ -2,9 +2,12 @@ package com.example.android_fefu_homeworks.notification
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import com.example.android_fefu_homeworks.MainActivity
 import com.example.android_fefu_homeworks.R
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -12,43 +15,50 @@ import javax.inject.Singleton
 
 @Singleton
 class NotificationHelper @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
 ) {
     private val notificationManager =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-    companion object {
-        const val CHANNEL_ID = "daily_events_channel"
-        const val CHANNEL_NAME = "Daily Events and Holidays"
+    fun showDailyNotification(title: String, message: String) {
+        createChannelIfNeeded()
+
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            0,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+
+        notificationManager.notify(NOTIFICATION_ID, notification)
     }
 
-    init {
-        createNotificationChannel()
-    }
-
-    private fun createNotificationChannel() {
+    private fun createChannelIfNeeded() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
-                description = "Notifications for today's holidays and notes"
-            }
+                "Ежедневные напоминания",
+                NotificationManager.IMPORTANCE_DEFAULT,
+            )
             notificationManager.createNotificationChannel(channel)
         }
     }
 
-    fun showDailyNotification(title: String, message: String) {
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_info) // Замените на свою иконку позже
-            .setContentTitle(title)
-            .setContentText(message)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setAutoCancel(true)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
-            .build()
-
-        notificationManager.notify(System.currentTimeMillis().toInt(), notification)
+    companion object {
+        private const val CHANNEL_ID = "daily_events"
+        private const val NOTIFICATION_ID = 1001
     }
 }

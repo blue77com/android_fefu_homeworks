@@ -4,9 +4,13 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CountryDao {
+    @Query("SELECT * FROM countries ORDER BY name ASC")
+    fun observeAllCountries(): Flow<List<CountryEntity>>
+
     @Query("SELECT * FROM countries ORDER BY name ASC")
     suspend fun getAllCountries(): List<CountryEntity>
 

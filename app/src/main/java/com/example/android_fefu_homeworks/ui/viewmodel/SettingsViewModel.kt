@@ -25,8 +25,9 @@ class SettingsViewModel @Inject constructor(
     private val holidayRepository: HolidayRepository
 ) : ViewModel() {
 
-    private val _countries = MutableStateFlow<List<Country>>(emptyList())
     private val _isLoadingCountries = MutableStateFlow(false)
+
+    private val countriesFlow = holidayRepository.observeCountries()
 
     init {
         loadCountries()
@@ -35,7 +36,7 @@ class SettingsViewModel @Inject constructor(
     val uiState: StateFlow<SettingsUiState> = combine(
         settingsRepository.appTheme,
         settingsRepository.selectedCountryCode,
-        _countries,
+        countriesFlow,
         _isLoadingCountries
     ) { theme, countryCode, countries, loading ->
         SettingsUiState(
@@ -51,6 +52,18 @@ class SettingsViewModel @Inject constructor(
         initialValue = SettingsUiState()
     )
 
+    fun loadCountries() {
+        viewModelScope.launch {
+            _isLoadingCountries.value = true
+            try {
+                holidayRepository.refreshCountries()
+            } catch (e: Exception) {
+            } finally {
+                _isLoadingCountries.value = false
+            }
+        }
+    }
+
     fun setTheme(theme: AppTheme) {
         viewModelScope.launch {
             settingsRepository.saveTheme(theme)
@@ -60,19 +73,6 @@ class SettingsViewModel @Inject constructor(
     fun setCountry(countryCode: String) {
         viewModelScope.launch {
             settingsRepository.saveCountryCode(countryCode)
-        }
-    }
-
-    private fun loadCountries() {
-        viewModelScope.launch {
-            _isLoadingCountries.value = true
-            try {
-                _countries.value = holidayRepository.getAvailableCountries()
-            } catch (e: Exception) {
-                // Handle error
-            } finally {
-                _isLoadingCountries.value = false
-            }
         }
     }
 }

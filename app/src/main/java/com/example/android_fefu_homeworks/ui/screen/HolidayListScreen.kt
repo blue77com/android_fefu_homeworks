@@ -41,7 +41,7 @@ fun HolidayListScreen(
     onNoteClick: (String) -> Unit,
     onToggleNoteFavourite: (String) -> Unit,
     onDeleteNote: (String) -> Unit,
-    onToggleChecklistItem: (String, String) -> Unit,
+    onToggleChecklistItem: (String, Int) -> Unit,
     onRetry: () -> Unit,
     onRefresh: () -> Unit,
     onSettingsClick: () -> Unit,
@@ -136,6 +136,59 @@ fun HolidayListScreen(
                     IconButton(onClick = { onYearChange(state.selectedYear + 1) }) {
                         Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Следующий год")
                     }
+                }
+            }
+
+            when {
+                state.selectedCountryCode == null -> {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "Выберите страну в настройках",
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            TextButton(onClick = onSettingsClick) {
+                                Text("Настройки")
+                            }
+                        }
+                    }
+                }
+                state.listState is HolidayListState.Error -> {
+                    val message = (state.listState as HolidayListState.Error).message
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = message,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.weight(1f),
+                            )
+                            TextButton(onClick = onRetry) {
+                                Text("Повторить")
+                            }
+                        }
+                    }
+                }
+                state.listState is HolidayListState.Loading -> {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
             }
 
@@ -253,11 +306,11 @@ fun HolidayListScreen(
 
                                     if (note.checklist.isNotEmpty()) {
                                         Column(modifier = Modifier.padding(top = 4.dp)) {
-                                            note.checklist.take(3).forEach { item ->
+                                            note.checklist.take(3).forEachIndexed { index, item ->
                                                 Row(
                                                     verticalAlignment = Alignment.CenterVertically,
                                                     horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                                    modifier = Modifier.clickable { onToggleChecklistItem(note.id, item.id) }
+                                                    modifier = Modifier.clickable { onToggleChecklistItem(note.id, index) }
                                                 ) {
                                                     Icon(
                                                         imageVector = if (item.isChecked) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,

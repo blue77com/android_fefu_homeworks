@@ -18,7 +18,6 @@ data class NoteEntity(
     val text: String,
     val description: String,
     val isFavourite: Boolean,
-    val holidayId: String? = null,
     val category: String,
     val repeatMode: String,
     val checklistJson: String
@@ -43,7 +42,6 @@ fun NoteEntity.toDomain() = Note(
     text = text,
     description = description,
     isFavourite = isFavourite,
-    holidayId = holidayId,
     category = NoteCategory.valueOf(category),
     repeatMode = RepeatMode.valueOf(repeatMode),
     checklist = NoteConverters().toChecklist(checklistJson)
@@ -55,7 +53,6 @@ fun Note.toEntity() = NoteEntity(
     text = text,
     description = description,
     isFavourite = isFavourite,
-    holidayId = holidayId,
     category = category.name,
     repeatMode = repeatMode.name,
     checklistJson = NoteConverters().fromChecklist(checklist)

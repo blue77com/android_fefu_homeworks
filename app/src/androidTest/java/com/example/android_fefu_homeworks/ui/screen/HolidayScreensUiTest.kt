@@ -31,7 +31,6 @@ class HolidayScreensUiTest {
             MaterialTheme {
                 HolidayListScreen(
                     state = state.copy(showOnlyNotes = showOnlyNotes),
-                    onCountryChange = {},
                     onYearChange = {},
                     onMonthChange = {},
                     onDateSelected = {},
@@ -42,8 +41,11 @@ class HolidayScreensUiTest {
                     onNoteClick = {},
                     onToggleNoteFavourite = {},
                     onDeleteNote = {},
+                    onToggleChecklistItem = { _, _ -> },
                     onRetry = {},
                     onRefresh = {},
+                    onSettingsClick = {},
+                    onHistoryClick = {},
                 )
             }
         }

@@ -28,7 +28,6 @@ data class Note(
     val text: String,
     val description: String = "",
     val isFavourite: Boolean = false,
-    val holidayId: String? = null,
     val category: NoteCategory = NoteCategory.PERSONAL,
     val repeatMode: RepeatMode = RepeatMode.NONE,
     val checklist: List<ChecklistItem> = emptyList()

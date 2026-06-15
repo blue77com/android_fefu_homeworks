@@ -24,41 +24,36 @@ class DailyWorker @AssistedInject constructor(
         val today = LocalDate.now()
         val todayStr = today.toString()
         val year = today.year
-
         val events = mutableListOf<String>()
 
-        // 1. Проверяем личные заметки
         val allNotes = repository.observeNotes().first()
-        val todayNotes = allNotes.filter { it.date == todayStr }
-        todayNotes.forEach { events.add("📌 Заметка: ${it.text}") }
+        allNotes
+            .filter { it.date == todayStr }
+            .forEach { note ->
+                val prefix = if (note.isFavourite) "Избранная заметка" else "Заметка"
+                events.add("$prefix: ${note.text}")
+            }
 
-        // 2. Проверяем праздники для выбранной страны
         val countryCode = settingsRepository.selectedCountryCode.first()
         if (countryCode != null) {
             try {
-                // Пытаемся получить праздники (репозиторий сам заберет из кэша, если они там есть)
-                val holidays = repository.getPublicHolidays(year, countryCode, forceRefresh = false)
-                val todayHolidays = holidays.filter { it.date == todayStr }
-                todayHolidays.forEach { events.add("🎉 Праздник: ${it.localName}") }
-            } catch (e: Exception) {
-                // Если произошла ошибка (нет сети и нет кэша), просто пропускаем этот этап
+                repository.refreshPublicHolidays(year, countryCode)
+            } catch (_: Exception) {
             }
-        }
 
-        // 3. Проверяем избранное (на случай если оно не совпадает с текущей страной)
-        val favourites = repository.observeFavourites().first()
-        val todayFavs = favourites.filter { it.date == todayStr }
-        todayFavs.forEach { fav ->
-            val alreadyAdded = events.any { it.contains(fav.localName) }
-            if (!alreadyAdded) {
-                events.add("⭐ Избранное: ${fav.localName}")
+            try {
+                val holidays = repository.observePublicHolidays(year, countryCode).first()
+                holidays
+                    .filter { it.date == todayStr }
+                    .forEach { events.add("Праздник: ${it.localName}") }
+            } catch (_: Exception) {
             }
         }
 
         if (events.isNotEmpty()) {
             notificationHelper.showDailyNotification(
                 title = "События на сегодня",
-                message = events.joinToString("\n")
+                message = events.joinToString("\n"),
             )
         }
 

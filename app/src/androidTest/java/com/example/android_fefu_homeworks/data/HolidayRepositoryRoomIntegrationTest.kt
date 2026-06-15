@@ -6,8 +6,9 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.android_fefu_homeworks.data.local.HolidayDatabase
 import com.example.android_fefu_homeworks.data.remote.NagerApi
-import com.example.android_fefu_homeworks.model.Holiday
+import com.example.android_fefu_homeworks.model.Note
 import io.mockk.mockk
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -36,26 +37,27 @@ class HolidayRepositoryRoomIntegrationTest {
     }
 
     @Test
-    fun addFavorite_thenGetFavourites_roundTripsDomainModel() = runTest {
-        val repo = HolidayRepositoryImpl(api = api, favoriteHolidayDao = db.favoriteHolidayDao())
-        val holiday = Holiday(
-            date = "2026-01-01",
-            localName = "Новый год",
-            name = "New Year's Day",
-            countryCode = "RU",
-            global = true,
-            counties = listOf("RU-PRI"),
-            types = listOf("Public", "Bank"),
+    fun addNote_thenObserveNotes_roundTripsDomainModel() = runTest {
+        val repo = HolidayRepositoryImpl(
+            api = api,
+            noteDao = db.noteDao(),
+            holidayCacheDao = db.holidayCacheDao(),
+            countryDao = db.countryDao(),
+        )
+        val note = Note(
+            id = "note-1",
+            date = "2026-06-15",
+            text = "Важная заметка",
+            description = "Описание",
+            isFavourite = true,
         )
 
-        repo.addFavorite(holiday)
-        val favs = repo.getFavourites()
+        repo.addNote(note)
+        val notes = repo.observeNotes().first()
 
-        assertEquals(1, favs.size)
-        assertEquals(holiday.id, favs.first().id)
-        assertEquals(holiday.countryCode, favs.first().countryCode)
-        assertEquals(setOf("Public", "Bank"), favs.first().types.toSet())
-        assertEquals(listOf("RU-PRI"), favs.first().counties)
+        assertEquals(1, notes.size)
+        assertEquals(note.id, notes.first().id)
+        assertEquals(note.text, notes.first().text)
+        assertEquals(true, notes.first().isFavourite)
     }
 }
-
