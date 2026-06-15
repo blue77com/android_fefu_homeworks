@@ -21,6 +21,7 @@ data class HolidayUiState(
     val selectedDayHolidays: List<Holiday> = emptyList(), // Праздники конкретно на выбранную дату
     val showOnlyNotes: Boolean = false,
     val notes: Map<String, List<Note>> = emptyMap(),
+    val allNotes: Map<String, List<Note>> = emptyMap(), // Для истории (все года)
     val countries: List<com.example.android_fefu_homeworks.model.Country> = emptyList(),
     val listState: HolidayListState = HolidayListState.Empty,
     val isLoadingCountries: Boolean = false,

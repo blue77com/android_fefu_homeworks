@@ -188,10 +188,17 @@ class HolidayViewModel @Inject constructor(
         }
 
         val filteredNotes = if (showOnlyNotes) {
-            prefs.notes.mapValues { entry -> 
+            // Ограничиваем список ИЗБРАННОГО текущим годом (или повторениями в нем)
+            prefs.notes.filterKeys { dateStr ->
+                try {
+                    val noteDate = LocalDate.parse(dateStr)
+                    noteDate.year == prefs.year || entryHasOccurrenceInYear(dateStr, prefs.year, prefs.notes[dateStr])
+                } catch (e: Exception) { false }
+            }.mapValues { entry -> 
                 entry.value.filter { it.isFavourite } 
             }.filterValues { it.isNotEmpty() }
         } else {
+            // Остальные (для календаря) показываем все, чтобы точки отображались корректно
             prefs.notes
         }
 
@@ -205,6 +212,7 @@ class HolidayViewModel @Inject constructor(
             selectedDate = prefs.selectedDate,
             showOnlyNotes = showOnlyNotes,
             notes = filteredNotes,
+            allNotes = prefs.notes, // Полный список для истории
             countries = countriesSt.countries,
             listState = displayedListState,
             isLoadingCountries = countriesSt.loading,
@@ -215,6 +223,16 @@ class HolidayViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = HolidayUiState()
     )
+
+    private fun entryHasOccurrenceInYear(dateStr: String, targetYear: Int, notes: List<Note>?): Boolean {
+        if (notes == null) return false
+        return notes.any { note ->
+            val startDate = try { LocalDate.parse(note.date) } catch(e: Exception) { return@any false }
+            if (startDate.year == targetYear) return@any true
+            if (startDate.year > targetYear) return@any false
+            note.repeatMode != RepeatMode.NONE
+        }
+    }
 
     fun retry() { 
         if (uiState.value.countriesError != null) loadCountries()
