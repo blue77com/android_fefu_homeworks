@@ -3,29 +3,21 @@ package com.example.android_fefu_homeworks.ui.screen
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,11 +29,7 @@ import com.example.android_fefu_homeworks.model.Holiday
 @Composable
 fun HolidayDetailScreen(
     holiday: Holiday?,
-    isFavourite: Boolean,
-    onToggleFavourite: () -> Unit,
     onBackClick: () -> Unit,
-    favouriteActionError: String? = null,
-    onDismissFavouriteActionError: () -> Unit = {},
 ) {
     Scaffold(
         topBar = {
@@ -53,7 +41,6 @@ fun HolidayDetailScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onBackClick) {
@@ -65,25 +52,6 @@ fun HolidayDetailScreen(
                         modifier = Modifier.weight(1f),
                         textAlign = TextAlign.Center
                     )
-                    IconButton(onClick = onToggleFavourite) {
-                        Crossfade(
-                            targetState = isFavourite,
-                            animationSpec = tween(durationMillis = 200),
-                            label = "detailFavouriteIcon",
-                        ) { favourite ->
-                            Icon(
-                                imageVector = if (favourite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                contentDescription =
-                                    if (favourite) "Удалить из избранного" else "Добавить в избранное",
-                                tint = if (favourite) {
-                                    MaterialTheme.colorScheme.error
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                                modifier = Modifier.size(24.dp),
-                            )
-                        }
-                    }
                 }
             }
         }
@@ -93,25 +61,6 @@ fun HolidayDetailScreen(
                 .padding(innerPadding)
                 .fillMaxSize(),
         ) {
-            favouriteActionError?.let { message ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = message,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.weight(1f),
-                    )
-                    TextButton(onClick = onDismissFavouriteActionError) {
-                        Text("OK")
-                    }
-                }
-            }
             if (holiday == null) {
                 Column(
                     modifier = Modifier

@@ -1,6 +1,9 @@
 package com.example.android_fefu_homeworks.ui.viewmodel
 
-import com.example.android_fefu_homeworks.model.HolidayFilter
+import com.example.android_fefu_homeworks.model.Country
+import com.example.android_fefu_homeworks.model.Note
+import java.time.LocalDate
+import java.util.Calendar
 
 sealed class HolidayListState {
     data object Loading : HolidayListState()
@@ -10,15 +13,14 @@ sealed class HolidayListState {
 }
 
 data class HolidayUiState(
-    val query: String = "",
     val selectedCountryCode: String? = null,
-    val selectedYear: Int = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR),
-    val filter: HolidayFilter = HolidayFilter.ALL,
-    val favourites: Set<String> = emptySet(),
-    val countries: List<com.example.android_fefu_homeworks.model.Country> = emptyList(),
+    val selectedCountryName: String? = null,
+    val selectedYear: Int = Calendar.getInstance().get(Calendar.YEAR),
+    val selectedMonth: Int = Calendar.getInstance().get(Calendar.MONTH),
+    val selectedDate: LocalDate = LocalDate.now(),
+    val showOnlyNotes: Boolean = false,
+    val notes: Map<String, List<Note>> = emptyMap(),
+    val countries: List<Country> = emptyList(),
     val listState: HolidayListState = HolidayListState.Empty,
     val isLoadingCountries: Boolean = false,
-    val countriesError: String? = null,
-    val favouritesError: String? = null,
-    val favouriteActionError: String? = null,
 )

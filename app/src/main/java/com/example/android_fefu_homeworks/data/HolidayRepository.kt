@@ -5,78 +5,96 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import com.example.android_fefu_homeworks.data.local.FavoriteHolidayDao
-import com.example.android_fefu_homeworks.data.local.FavouriteHolidayEntity
-import com.example.android_fefu_homeworks.data.local.FavouritesCountiesEntity
-import com.example.android_fefu_homeworks.data.local.FavouritesTypesEntity
+import com.example.android_fefu_homeworks.data.local.CountryDao
+import com.example.android_fefu_homeworks.data.local.CountryEntity
+import com.example.android_fefu_homeworks.data.local.HolidayCacheDao
+import com.example.android_fefu_homeworks.data.local.NoteDao
+import com.example.android_fefu_homeworks.data.local.toCacheEntity
 import com.example.android_fefu_homeworks.data.local.toDomain
+import com.example.android_fefu_homeworks.data.local.toEntity
 import com.example.android_fefu_homeworks.data.remote.NagerApi
 import com.example.android_fefu_homeworks.data.remote.toDomain
 import com.example.android_fefu_homeworks.model.Country
 import com.example.android_fefu_homeworks.model.Holiday
+import com.example.android_fefu_homeworks.model.Note
 import javax.inject.Inject
 import javax.inject.Singleton
 
-
 interface HolidayRepository {
-    suspend fun addFavorite(Holiday: Holiday)
-
-    suspend fun removeFavorite(id: String)
-
-    fun observeFavourites(): Flow<List<Holiday>>
-
-    suspend fun getAvailableCountries(): List<Country>
-    suspend fun getPublicHolidays(year: Int, countryCode: String) : List<Holiday>
+    fun observeCountries(): Flow<List<Country>>
+    suspend fun refreshCountries()
+    fun observePublicHolidays(year: Int, countryCode: String): Flow<List<Holiday>>
+    suspend fun refreshPublicHolidays(year: Int, countryCode: String)
+    fun observeNotes(): Flow<List<Note>>
+    suspend fun addNote(note: Note)
+    suspend fun updateNote(note: Note)
+    suspend fun toggleNoteFavourite(id: String)
+    suspend fun getNoteById(id: String): Note?
+    suspend fun deleteNote(id: String)
 }
 
 @Singleton
 class HolidayRepositoryImpl @Inject constructor(
     private val api: NagerApi,
-    private val favoriteHolidayDao: FavoriteHolidayDao,
-) : HolidayRepository{
+    private val noteDao: NoteDao,
+    private val holidayCacheDao: HolidayCacheDao,
+    private val countryDao: CountryDao,
+) : HolidayRepository {
 
-    override suspend fun addFavorite(Holiday: Holiday) = withContext(Dispatchers.IO)
-    {
-        val holidayEntity = FavouriteHolidayEntity(
-            id =  Holiday.id,
-            date = Holiday.date,
-            localName = Holiday.localName ,
-            name = Holiday.name,
-            countryCode = Holiday.countryCode,
-            global = Holiday.global
-        )
-
-        val typeEntities = Holiday.types?.map { typeName ->
-            FavouritesTypesEntity(
-                holidayId = Holiday.id,
-                name = typeName
-            )
-        } ?: emptyList()
-
-        val countyEntities = Holiday.counties?.map { countyCode ->
-            FavouritesCountiesEntity(
-                holidayId = Holiday.id,
-                name = countyCode
-            )
-        } ?: emptyList()
-
-        favoriteHolidayDao.insert(holidayEntity, typeEntities, countyEntities)
-    }
-
-    override fun observeFavourites(): Flow<List<Holiday>> =
-        favoriteHolidayDao.observeAll()
-            .map { rows -> rows.map { it.toDomain() } }
+    override fun observeCountries(): Flow<List<Country>> =
+        countryDao.observeAllCountries()
+            .map { entities -> entities.map { it.toDomain() } }
             .flowOn(Dispatchers.IO)
 
-    override suspend fun removeFavorite(id: String) = withContext(Dispatchers.IO){
-        favoriteHolidayDao.deleteById(id)
+    override suspend fun refreshCountries() = withContext(Dispatchers.IO) {
+        val remoteDtos = api.getAvailableCountries()
+        val entities = remoteDtos.map { dto ->
+            CountryEntity(countryCode = dto.countryCode, name = dto.name)
+        }
+        if (entities.isNotEmpty()) {
+            countryDao.deleteAll()
+            countryDao.insertCountries(entities)
+        }
     }
 
-    override suspend fun getAvailableCountries(): List<Country> = withContext(Dispatchers.IO) {
-        api.getAvailableCountries().map { it.toDomain() }
+    override fun observePublicHolidays(year: Int, countryCode: String): Flow<List<Holiday>> =
+        holidayCacheDao.observeHolidays(countryCode, year)
+            .map { entities -> entities.map { it.toDomain() } }
+            .flowOn(Dispatchers.IO)
+
+    override suspend fun refreshPublicHolidays(year: Int, countryCode: String) = withContext(
+        Dispatchers.IO
+    ) {
+        val remoteHolidays = api.getPublicHolidays(year, countryCode)
+        val entities = remoteHolidays.map { dto ->
+            dto.toDomain().toCacheEntity(year)
+        }
+        holidayCacheDao.deleteHolidays(countryCode, year)
+        holidayCacheDao.insertHolidays(entities)
     }
-    
-    override suspend fun getPublicHolidays(year: Int, countryCode: String): List<Holiday> = withContext(Dispatchers.IO) {
-        api.getPublicHolidays(year, countryCode).map { it.toDomain() }
+
+    override fun observeNotes(): Flow<List<Note>> =
+        noteDao.getAllNotes()
+            .map { entities -> entities.map { it.toDomain() } }
+            .flowOn(Dispatchers.IO)
+
+    override suspend fun addNote(note: Note) = withContext(Dispatchers.IO) {
+        noteDao.insertNote(note.toEntity())
+    }
+
+    override suspend fun updateNote(note: Note) = withContext(Dispatchers.IO) {
+        noteDao.updateNote(note.toEntity())
+    }
+
+    override suspend fun toggleNoteFavourite(id: String) = withContext(Dispatchers.IO) {
+        noteDao.toggleNoteFavourite(id)
+    }
+
+    override suspend fun getNoteById(id: String): Note? = withContext(Dispatchers.IO) {
+        noteDao.getNoteById(id)?.toDomain()
+    }
+
+    override suspend fun deleteNote(id: String) = withContext(Dispatchers.IO) {
+        noteDao.deleteNoteById(id)
     }
 }

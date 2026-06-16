@@ -1,416 +1,387 @@
 package com.example.android_fefu_homeworks.ui.screen
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.material3.MaterialTheme
-import com.example.android_fefu_homeworks.model.Holiday
-import com.example.android_fefu_homeworks.model.HolidayFilter
+import com.example.android_fefu_homeworks.model.RepeatMode
+import com.example.android_fefu_homeworks.model.occursOn
 import com.example.android_fefu_homeworks.ui.viewmodel.HolidayListState
 import com.example.android_fefu_homeworks.ui.viewmodel.HolidayUiState
-import com.example.android_fefu_homeworks.ui.widget.HolidayCard
+import com.example.android_fefu_homeworks.ui.widget.CalendarWidget
+import java.time.LocalDate
+import java.time.format.TextStyle
+import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HolidayListScreen(
     state: HolidayUiState,
-    onQueryChange: (String) -> Unit,
-    onCountryChange: (String) -> Unit,
     onYearChange: (Int) -> Unit,
-    onFilterChange: (HolidayFilter) -> Unit,
-    onToggleFavourite: (String) -> Unit,
+    onMonthChange: (Int) -> Unit,
+    onDateSelected: (LocalDate) -> Unit,
+    onGoToToday: () -> Unit,
+    onToggleShowOnlyNotes: (Boolean) -> Unit,
     onHolidayClick: (String) -> Unit,
+    onAddNoteClick: (LocalDate) -> Unit,
+    onNoteClick: (String) -> Unit,
+    onToggleNoteFavourite: (String) -> Unit,
+    onDeleteNote: (String) -> Unit,
+    onToggleChecklistItem: (String, Int) -> Unit,
     onRetry: () -> Unit,
     onRefresh: () -> Unit,
-    onDismissFavouriteActionError: () -> Unit,
+    onSettingsClick: () -> Unit,
+    onHistoryClick: () -> Unit
 ) {
-    var yearInput by remember { mutableStateOf(state.selectedYear.toString()) }
-    
-    LaunchedEffect(state.selectedYear) {
-        yearInput = state.selectedYear.toString()
-    }
-
     Scaffold(
         topBar = {
-            Surface(
-                color = MaterialTheme.colorScheme.surface,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                    Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Календарь праздников",
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.weight(1f),
-                        textAlign = TextAlign.Center
-                    )
+            TopAppBar(
+                title = { Text(state.selectedCountryName ?: "Мой Календарь") },
+                actions = {
+                    IconButton(onClick = onHistoryClick) {
+                        Icon(Icons.Default.List, contentDescription = "История заметок")
+                    }
+                    IconToggleButton(
+                        checked = state.showOnlyNotes,
+                        onCheckedChange = onToggleShowOnlyNotes
+                    ) {
+                        Icon(
+                            imageVector = if (state.showOnlyNotes) Icons.Default.Favorite else Icons.Outlined.FavoriteBorder,
+                            contentDescription = if (state.showOnlyNotes) "Показать все события" else "Только избранные заметки",
+                            tint = if (state.showOnlyNotes) MaterialTheme.colorScheme.error else LocalContentColor.current
+                        )
+                    }
+                    IconButton(onClick = onGoToToday) {
+                        Icon(Icons.Default.DateRange, contentDescription = "Сегодня")
+                    }
                     IconButton(
                         onClick = onRefresh,
-                        enabled = state.selectedCountryCode != null && state.listState !is com.example.android_fefu_homeworks.ui.viewmodel.HolidayListState.Loading
+                        enabled = state.selectedCountryCode != null && state.listState !is HolidayListState.Loading
                     ) {
                         Icon(Icons.Default.Refresh, contentDescription = "Обновить")
                     }
+                    IconButton(onClick = onSettingsClick) {
+                        Icon(Icons.Default.Settings, contentDescription = "Настройки")
+                    }
                 }
-            }
+            )
         }
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Country selector
-            CountrySelector(
-                countries = state.countries,
-                selectedCountryCode = state.selectedCountryCode,
-                onCountrySelected = onCountryChange,
-                isLoading = state.isLoadingCountries
-            )
-
-            state.countriesError?.let { message ->
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "Страны: $message",
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    OutlinedButton(onClick = onRetry, modifier = Modifier.fillMaxWidth()) {
-                        Text("Повторить загрузку стран")
-                    }
-                }
-            }
-
-            // Year selector
+            // Навигация по датам
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
-                    onClick = {
-                        val newYear = state.selectedYear - 1
-                        if (newYear >= 1900) {
-                            onYearChange(newYear)
-                        }
-                    },
-                    enabled = state.selectedYear > 1900
-                ) {
-                    Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Уменьшить год")
+                val monthName = remember(state.selectedMonth) {
+                    java.time.Month.of(state.selectedMonth + 1)
+                        .getDisplayName(TextStyle.FULL, Locale("ru"))
+                        .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale("ru")) else it.toString() }
                 }
-                OutlinedTextField(
-                    value = yearInput,
-                    onValueChange = { newValue ->
-                        if (newValue.isEmpty() || newValue.all { it.isDigit() }) {
-                            yearInput = newValue
-                            newValue.toIntOrNull()?.let { year ->
-                                if (year >= 1900 && year <= 2100) {
-                                    onYearChange(year)
-                                }
-                            }
-                        }
-                    },
-                    label = { Text("Год") },
-                    modifier = Modifier.weight(1f),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Number
-                    )
-                )
-                IconButton(
-                    onClick = {
-                        val newYear = state.selectedYear + 1
-                        if (newYear <= 2100) {
-                            onYearChange(newYear)
-                        }
-                    },
-                    enabled = state.selectedYear < 2100
-                ) {
-                    Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Увеличить год")
-                }
-            }
 
-            // Search field
-            OutlinedTextField(
-                value = state.query,
-                onValueChange = onQueryChange,
-                modifier = Modifier.fillMaxWidth()
-                    .padding(6.dp),
-                label = { Text("Поиск праздников") },
-                singleLine = true
-            )
-
-            state.favouritesError?.let { message ->
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "Избранное: $message",
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    OutlinedButton(onClick = onRetry, modifier = Modifier.fillMaxWidth()) {
-                        Text("Повторить загрузку избранного")
-                    }
-                }
-            }
-
-            state.favouriteActionError?.let { message ->
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1.5f),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    IconButton(onClick = { onMonthChange(state.selectedMonth - 1) }) {
+                        Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Предыдущий месяц")
+                    }
                     Text(
-                        text = message,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = monthName,
                         modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold
                     )
-                    TextButton(onClick = onDismissFavouriteActionError) {
-                        Text("OK")
+                    IconButton(onClick = { onMonthChange(state.selectedMonth + 1) }) {
+                        Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Следующий месяц")
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { onYearChange(state.selectedYear - 1) }) {
+                        Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Предыдущий год")
+                    }
+                    Text(
+                        text = state.selectedYear.toString(),
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(onClick = { onYearChange(state.selectedYear + 1) }) {
+                        Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Следующий год")
                     }
                 }
             }
 
-            // Filter buttons
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(
-                    onClick = { onFilterChange(HolidayFilter.ALL) },
-                    colors = ButtonDefaults.textButtonColors(
-                        containerColor = if (state.filter == HolidayFilter.ALL) 
-                            MaterialTheme.colorScheme.surfaceVariant 
-                        else 
-                            Color.Transparent
-                    )
-                ) {
-                    Text(if (state.filter == HolidayFilter.ALL) "-Все-" else "Все")
-                }
-                TextButton(
-                    onClick = { onFilterChange(HolidayFilter.FAVOURITES) },
-                    colors = ButtonDefaults.textButtonColors(
-                        containerColor = if (state.filter == HolidayFilter.FAVOURITES) 
-                            MaterialTheme.colorScheme.surfaceVariant 
-                        else 
-                            Color.Transparent
-                    )
-                ) {
-                    Text(if (state.filter == HolidayFilter.FAVOURITES) "-Избранное-" else "Избранное")
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Content based on state
-            when (val listState = state.listState) {
-                is HolidayListState.Loading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
+            when {
+                state.selectedCountryCode == null -> {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
                     ) {
-                        CircularProgressIndicator()
-                    }
-                }
-                is HolidayListState.Error -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                text = "Ошибка: ${listState.message}",
-                                textAlign = TextAlign.Center
+                                text = "Выберите страну в настройках",
+                                style = MaterialTheme.typography.bodyMedium,
                             )
-                            Button(onClick = onRetry) {
+                            TextButton(onClick = onSettingsClick) {
+                                Text("Настройки")
+                            }
+                        }
+                    }
+                }
+                state.listState is HolidayListState.Error -> {
+                    val message = (state.listState as HolidayListState.Error).message
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = message,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.weight(1f),
+                            )
+                            TextButton(onClick = onRetry) {
                                 Text("Повторить")
                             }
                         }
                     }
                 }
-                is HolidayListState.Empty -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
+                state.listState is HolidayListState.Loading -> {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+            }
+
+            val holidays = (state.listState as? HolidayListState.Success)?.holidays ?: emptyList()
+            
+            CalendarWidget(
+                year = state.selectedYear,
+                month = state.selectedMonth + 1,
+                selectedDate = state.selectedDate,
+                holidays = holidays,
+                notes = state.notes,
+                onDayClick = onDateSelected
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            
+            val dateStr = state.selectedDate.toString()
+            
+            val dayHolidays = if (state.showOnlyNotes) {
+                emptyList()
+            } else {
+                holidays.filter { it.date == dateStr }
+            }
+
+            val allNotes = remember(state.notes) { state.notes.values.flatten() }
+            val dayNotes = if (state.showOnlyNotes) {
+                allNotes.filter { it.isFavourite }
+            } else {
+                allNotes.filter { it.occursOn(state.selectedDate) }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (state.showOnlyNotes) "Избранные заметки" else "${state.selectedDate.dayOfMonth} ${state.selectedDate.month.getDisplayName(TextStyle.FULL, Locale("ru"))}",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                if (!state.showOnlyNotes && state.selectedDate == LocalDate.now()) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = RoundedCornerShape(16.dp)
                     ) {
                         Text(
-                            text = if (state.selectedCountryCode == null) {
-                                "Выберите страну для просмотра праздников"
-                            } else if (state.filter == HolidayFilter.FAVOURITES) {
-                                "Нет избранных праздников"
-                            } else if (state.query.isNotBlank()) {
-                                "Праздники не найдены"
-                            } else {
-                                "Праздники недоступны"
-                            },
-                            textAlign = TextAlign.Center
+                            "Сегодня",
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
                 }
-                is HolidayListState.Success -> {
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        itemsIndexed(
-                            items = listState.holidays,
-                            key = { index, holiday -> "${holiday.id}_$index" }
-                        ) { _, holiday ->
-                            HolidayCard(
-                                holiday = holiday,
-                                isFavourite = holiday.id in state.favourites,
-                                onToggleFavourite = { onToggleFavourite(holiday.id) },
-                                onClick = { onHolidayClick(holiday.id) }
-                            )
-                        }
+            }
+
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(bottom = 16.dp)
+            ) {
+                if (dayHolidays.isEmpty() && dayNotes.isEmpty()) {
+                    item {
+                        Text(
+                            if (state.showOnlyNotes) "У вас пока нет избранных заметок" else "Событий не запланировано",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.padding(vertical = 12.dp)
+                        )
                     }
                 }
-            }
-        }
-    }
-}
 
-@Composable
-fun CountrySelector(
-    countries: List<com.example.android_fefu_homeworks.model.Country>,
-    selectedCountryCode: String?,
-    onCountrySelected: (String) -> Unit,
-    isLoading: Boolean
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val selectedCountry = countries.find { it.countryCode == selectedCountryCode }
-
-    OutlinedButton(
-        onClick = { if (!isLoading) expanded = true },
-        modifier = Modifier.fillMaxWidth()
-            .height(55.dp)
-            .padding(horizontal = 8.dp),
-            shape = RoundedCornerShape(
-            topStart = 6.dp,
-            topEnd = 6.dp,
-            bottomEnd = 6.dp,
-            bottomStart = 6.dp
-        ),
-        enabled = !isLoading,
-    ) {
-        Text(
-            text = selectedCountry?.name ?: "Выберите страну",
-            modifier = Modifier.weight(1f),
-            fontSize = 16.sp,
-            textAlign = TextAlign.Start
-        )
-        Icon(
-            imageVector = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-            contentDescription = if (expanded) "Свернуть" else "Развернуть"
-        )
-    }
-
-    if (expanded) {
-        Dialog(
-            onDismissRequest = { expanded = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .fillMaxHeight(0.85f),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight()
-                        .padding(16.dp)
-                ) {
-                    Text(
-                        text = "Выберите страну",
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    )
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                itemsIndexed(dayHolidays) { _, holiday ->
+                    Card(
+                        onClick = { onHolidayClick(holiday.id) },
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f))
                     ) {
-                        items(countries) { country ->
-                            val selected = country.countryCode == selectedCountryCode
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        onCountrySelected(country.countryCode)
-                                        expanded = false
-                                    },
-                                color = if (selected) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text(
-                                    text = country.name,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 14.dp)
+                        ListItem(
+                            headlineContent = { Text(holiday.localName, fontWeight = FontWeight.Bold) },
+                            supportingContent = { Text(holiday.name) },
+                            leadingContent = {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.secondary
                                 )
                             }
-                        }
+                        )
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    TextButton(
-                        onClick = { expanded = false },
-                        modifier = Modifier.fillMaxWidth()
+                }
+
+                itemsIndexed(dayNotes) { _, note ->
+                    Card(
+                        onClick = { onNoteClick(note.id) },
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f))
                     ) {
-                        Text("Закрыть")
+                        ListItem(
+                            headlineContent = { Text(note.text) },
+                            supportingContent = {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    if (note.description.isNotBlank()) {
+                                        Text(note.description, maxLines = 2)
+                                    }
+
+                                    if (note.checklist.isNotEmpty()) {
+                                        Column(modifier = Modifier.padding(top = 4.dp)) {
+                                            note.checklist.take(3).forEachIndexed { index, item ->
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                    modifier = Modifier.clickable { onToggleChecklistItem(note.id, index) }
+                                                ) {
+                                                    Icon(
+                                                        imageVector = if (item.isChecked) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(16.dp),
+                                                        tint = if (item.isChecked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                                                    )
+                                                    Text(
+                                                        text = item.text,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        textDecoration = if (item.isChecked) TextDecoration.LineThrough else null,
+                                                        color = if (item.isChecked) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onSurface,
+                                                        maxLines = 1
+                                                    )
+                                                }
+                                            }
+                                            if (note.checklist.size > 3) {
+                                                Text(
+                                                    "Еще ${note.checklist.size - 3}...",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.padding(start = 20.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    val isOriginal = note.date == dateStr
+                                    val labelText = when {
+                                        state.showOnlyNotes -> "Дата: ${note.date}"
+                                        note.repeatMode != RepeatMode.NONE -> {
+                                            if (isOriginal) "Оригинал (Повтор: ${note.repeatMode.displayName})" 
+                                            else "Повтор (${note.repeatMode.displayName})"
+                                        }
+                                        !isOriginal -> "Создано: ${note.date}"
+                                        else -> ""
+                                    }
+                                    if (labelText.isNotEmpty()) {
+                                        Text(
+                                            text = labelText,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.secondary
+                                        )
+                                    }
+                                }
+                            },
+                            trailingContent = {
+                                Row {
+                                    IconButton(onClick = { onToggleNoteFavourite(note.id) }) {
+                                        Icon(
+                                            if (note.isFavourite) Icons.Default.Favorite else Icons.Outlined.FavoriteBorder,
+                                            contentDescription = null,
+                                            tint = if (note.isFavourite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline
+                                        )
+                                    }
+                                    IconButton(onClick = { onDeleteNote(note.id) }) {
+                                        Icon(Icons.Default.Delete, contentDescription = "Удалить", modifier = Modifier.size(20.dp))
+                                    }
+                                }
+                            },
+                            leadingContent = {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.secondary
+                                )
+                            }
+                        )
+                    }
+                }
+
+                if (!state.showOnlyNotes) {
+                    item {
+                        Button(
+                            onClick = { onAddNoteClick(state.selectedDate) },
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Добавить событие или заметку")
+                        }
                     }
                 }
             }

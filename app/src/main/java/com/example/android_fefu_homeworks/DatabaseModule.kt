@@ -2,8 +2,10 @@ package com.example.android_fefu_homeworks
 
 import android.content.Context
 import androidx.room.Room
-import com.example.android_fefu_homeworks.data.local.FavoriteHolidayDao
+import com.example.android_fefu_homeworks.data.local.CountryDao
+import com.example.android_fefu_homeworks.data.local.HolidayCacheDao
 import com.example.android_fefu_homeworks.data.local.HolidayDatabase
+import com.example.android_fefu_homeworks.data.local.NoteDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -22,10 +24,19 @@ object DatabaseModule {
             context,
             klass = HolidayDatabase::class.java,
             name = "holiday_browser.db"
-        ).build()
+        )
+            .fallbackToDestructiveMigration()
+            .build()
 
     @Provides
     @Singleton
-    fun providesFavoriteDao(db: HolidayDatabase): FavoriteHolidayDao =
-        db.favoriteHolidayDao()
+    fun providesNoteDao(db: HolidayDatabase): NoteDao = db.noteDao()
+
+    @Provides
+    @Singleton
+    fun providesHolidayCacheDao(db: HolidayDatabase): HolidayCacheDao = db.holidayCacheDao()
+
+    @Provides
+    @Singleton
+    fun providesCountryDao(db: HolidayDatabase): CountryDao = db.countryDao()
 }

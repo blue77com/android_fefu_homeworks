@@ -1,109 +1,186 @@
 package com.example.android_fefu_homeworks.ui.viewmodel
 
+import com.example.android_fefu_homeworks.FakeHolidayRepository
+import com.example.android_fefu_homeworks.MainDispatcherRule
+import com.example.android_fefu_homeworks.fakeSettingsRepository
+import com.example.android_fefu_homeworks.model.ChecklistItem
 import com.example.android_fefu_homeworks.model.Country
 import com.example.android_fefu_homeworks.model.Holiday
-import com.example.android_fefu_homeworks.MainDispatcherRule
-import com.example.android_fefu_homeworks.FakeHolidayRepository
-import kotlinx.coroutines.test.advanceTimeBy
+import com.example.android_fefu_homeworks.model.Note
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
-import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.runCurrent
+import java.time.LocalDate
 
 class HolidayViewModelTest {
 
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
 
-    @Test
-    fun onToggleFavourite_whenHolidayNotInMemory_setsActionError_andDoesNotCallRepository() = runTest {
-        val repo = FakeHolidayRepository()
-        val vm = HolidayViewModel(repository = repo)
-
-        vm.onToggleFavourite("missing-id")
-        advanceUntilIdle()
-
-        assertNotNull(vm.uiState.value.favouriteActionError)
-        assertEquals(0, repo.addFavoriteCalls)
-        assertEquals(0, repo.removeFavoriteCalls)
+    private fun TestScope.collectUiState(vm: HolidayViewModel) {
+        backgroundScope.launch { vm.uiState.collect() }
     }
 
     @Test
-    fun onQueryChange_debouncesFiltering_andUsesLatestQuery() = runTest {
-        val repo = FakeHolidayRepository(
-            favourites = emptyList(),
-            countries = emptyList(),
-            publicHolidaysProvider = { _, _ ->
-                listOf(
-                    holiday(name = "New Year", localName = "Новый год"),
-                    holiday(name = "Victory Day", localName = "День Победы"),
-                )
-            },
+    fun onToggleShowOnlyNotes_switchesNotesFilter() = runTest {
+        val vm = HolidayViewModel(
+            repository = FakeHolidayRepository(),
+            settingsRepository = fakeSettingsRepository(),
         )
-        val vm = HolidayViewModel(repository = repo)
-
-        vm.onCountryChange("RU")
+        collectUiState(vm)
         advanceUntilIdle()
 
-        vm.onQueryChange("new")
-        advanceTimeBy(200)
-        vm.onQueryChange("new y")
-        advanceTimeBy(200)
-        vm.onQueryChange("new ye")
-
-        runCurrent()
-        assertTrue(vm.uiState.value.query.isNotBlank())
-
-        advanceTimeBy(401)
+        vm.onToggleShowOnlyNotes(true)
         advanceUntilIdle()
 
-        val state = vm.uiState.value.listState as HolidayListState.Success
-        assertEquals(1, state.holidays.size)
-        assertEquals("New Year", state.holidays.first().name)
+        assertTrue(vm.uiState.value.showOnlyNotes)
     }
 
     @Test
-    fun retry_whenErrorsPresent_triggersReloads() = runTest {
+    fun retry_afterRefreshFailure_triggersReload() = runTest {
         val repo = FakeHolidayRepository(
-            favourites = emptyList(),
-            countries = listOf(Country("RU", "Russia")),
-            publicHolidaysProvider = { _, _ -> emptyList() },
+            initialCountries = listOf(Country("RU", "Russia")),
         )
-        repo.failFavourites = true
-        repo.failCountries = true
-        val vm = HolidayViewModel(repository = repo)
-        advanceUntilIdle()
-
         repo.failPublicHolidays = true
-        vm.onCountryChange("RU")
+
+        val vm = HolidayViewModel(
+            repository = repo,
+            settingsRepository = fakeSettingsRepository("RU"),
+        )
+        collectUiState(vm)
         advanceUntilIdle()
 
-        assertNotNull(vm.uiState.value.countriesError)
         assertTrue(vm.uiState.value.listState is HolidayListState.Error)
 
-        repo.failFavourites = false
-        repo.failCountries = false
         repo.failPublicHolidays = false
-
+        repo.publicHolidaysProvider = { _, _ -> listOf(testHoliday()) }
         vm.retry()
         advanceUntilIdle()
 
-        assertTrue(repo.observeFavouritesCalls >= 2)
-        assertTrue(repo.getAvailableCountriesCalls >= 2)
-        assertTrue(repo.getPublicHolidaysCalls >= 2)
-        assertNull(vm.uiState.value.countriesError)
-        assertNull(vm.uiState.value.favouritesError)
+        assertTrue(repo.refreshPublicHolidaysCalls >= 2)
+        assertTrue(vm.uiState.value.listState is HolidayListState.Success)
     }
 
-    private fun holiday(
-        name: String,
-        localName: String,
-        date: String = "2026-01-01",
+    @Test
+    fun onMonthChange_updatesSelectedDate() = runTest {
+        val vm = HolidayViewModel(
+            repository = FakeHolidayRepository(),
+            settingsRepository = fakeSettingsRepository(),
+        )
+        collectUiState(vm)
+        advanceUntilIdle()
+
+        vm.onDateSelected(LocalDate.of(2026, 6, 15))
+        advanceUntilIdle()
+
+        vm.onMonthChange(6) // июнь (индекс 5) + 1 → июль
+        advanceUntilIdle()
+
+        assertEquals(7, vm.uiState.value.selectedDate.monthValue)
+    }
+
+    @Test
+    fun whenCountryNull_listStateIsEmpty() = runTest {
+        val vm = HolidayViewModel(
+            repository = FakeHolidayRepository(),
+            settingsRepository = fakeSettingsRepository(initialCountryCode = null),
+        )
+        collectUiState(vm)
+        advanceUntilIdle()
+
+        assertEquals(null, vm.uiState.value.selectedCountryCode)
+        assertTrue(vm.uiState.value.listState is HolidayListState.Empty)
+    }
+
+    @Test
+    fun toggleChecklistItem_togglesItemAtIndex() = runTest {
+        val note = Note(
+            id = "note-1",
+            date = "2026-06-15",
+            text = "Список дел",
+            checklist = listOf(
+                ChecklistItem(id = "c1", text = "Пункт 1", isChecked = false),
+                ChecklistItem(id = "c2", text = "Пункт 2", isChecked = false),
+            ),
+        )
+        val repo = FakeHolidayRepository(initialNotes = listOf(note))
+        val vm = HolidayViewModel(
+            repository = repo,
+            settingsRepository = fakeSettingsRepository(),
+        )
+        collectUiState(vm)
+        advanceUntilIdle()
+
+        vm.toggleChecklistItem("note-1", itemIndex = 0)
+        advanceUntilIdle()
+
+        val updated = repo.getNoteById("note-1")
+        assertTrue(updated!!.checklist[0].isChecked)
+        assertTrue(!updated.checklist[1].isChecked)
+    }
+
+    @Test
+    fun saveNote_whenNew_insertsViaRepository() = runTest {
+        val repo = FakeHolidayRepository()
+        val vm = HolidayViewModel(
+            repository = repo,
+            settingsRepository = fakeSettingsRepository(),
+        )
+        collectUiState(vm)
+        advanceUntilIdle()
+
+        val note = Note(id = "new-note", date = "2026-07-01", text = "Новая заметка")
+        vm.saveNote(note)
+        advanceUntilIdle()
+
+        assertEquals("Новая заметка", repo.getNoteById("new-note")?.text)
+    }
+
+    @Test
+    fun onToggleNoteFavourite_flipsFavouriteFlag() = runTest {
+        val note = Note(id = "note-1", date = "2026-06-15", text = "Заметка", isFavourite = false)
+        val repo = FakeHolidayRepository(initialNotes = listOf(note))
+        val vm = HolidayViewModel(
+            repository = repo,
+            settingsRepository = fakeSettingsRepository(),
+        )
+        collectUiState(vm)
+        advanceUntilIdle()
+
+        vm.onToggleNoteFavourite("note-1")
+        advanceUntilIdle()
+
+        assertTrue(repo.getNoteById("note-1")!!.isFavourite)
+    }
+
+    @Test
+    fun deleteNote_removesNoteFromRepository() = runTest {
+        val repo = FakeHolidayRepository(
+            initialNotes = listOf(Note(id = "note-1", date = "2026-06-15", text = "Удалить меня")),
+        )
+        val vm = HolidayViewModel(
+            repository = repo,
+            settingsRepository = fakeSettingsRepository(),
+        )
+        collectUiState(vm)
+        advanceUntilIdle()
+
+        vm.deleteNote("note-1")
+        advanceUntilIdle()
+
+        assertEquals(null, repo.getNoteById("note-1"))
+    }
+
+    private fun testHoliday(
+        name: String = "New Year's Day",
+        localName: String = "Новый год",
+        date: String = LocalDate.now().toString(),
         countryCode: String = "RU",
     ): Holiday = Holiday(
         date = date,
